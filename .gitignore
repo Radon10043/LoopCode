@@ -1,5 +1,7 @@
 .vscode/
 build/
+data/
 
 *.ll
 *.out
+*.dot
