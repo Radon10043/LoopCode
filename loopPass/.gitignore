@@ -6,3 +6,4 @@ temp/
 *.ll
 *.out
 *.dot
+*.out.*
