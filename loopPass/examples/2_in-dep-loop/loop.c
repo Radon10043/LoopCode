@@ -18,10 +18,9 @@ void loop(int x) {
 
 int main(int argc, char **argv) {
   int x = 0;
-  char str[10];
-  fgets(str, 10, stdin);
 
-  x = atoi(str);
+  scanf("%d", &x);
+
   loop(x);
 
   return 0;
