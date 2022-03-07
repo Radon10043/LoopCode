@@ -27,8 +27,8 @@ def coloring(path: str):
         loopRecord = f.readlines()
     for i in range(min(len(loopBBs), len(loopRecord))): # 将loopBBs和loopRecord相应地存储到loopBBDict
         loopBBs[i] = loopBBs[i].rstrip("\n")
-        loopRecord[i] = int(loopRecord[i])
-        loopBBDict[loopBBs[i].rstrip("\n")] = int(loopRecord[i])
+        loopBBDict[loopBBs[i]] = list()
+        loopBBDict[loopBBs[i]] = [int(num) for num in loopRecord[i].split("-")]
 
     dotPaths = list()   # 存储所有dot图绝对路径的list
     for file in os.listdir(os.path.join(path, "dot-files")):
@@ -55,10 +55,13 @@ def coloring(path: str):
         # 获得节点的label, 并进行染色操作
         for node in nodes:
             nodeLabel = node.obj_dict["attributes"]["label"].lstrip("\"{").rstrip(":}\"")
-            if nodeLabel in loopBBs and loopBBDict[nodeLabel] > 0:  # 如果节点是循环BB, 且覆盖次数大于0, 就进行染色与添加覆盖次数
-                node.obj_dict["attributes"]["fillcolor"] = "cyan"
+            if nodeLabel in loopBBs:  # 如果节点是循环BB, 且覆盖次数大于0, 就进行染色与添加覆盖次数
+                if loopBBDict[nodeLabel][0] > 0:
+                    node.obj_dict["attributes"]["fillcolor"] = "cyan"
+                else:
+                    node.obj_dict["attributes"]["fillcolor"] = "cyan3"
                 node.obj_dict["attributes"]["style"] = "filled"
-                node.obj_dict["attributes"]["label"] = "\"{" + nodeLabel + ":|" + str(loopBBDict[nodeLabel]) + "}\""
+                node.obj_dict["attributes"]["label"] = "\"{" + nodeLabel + ":|" + str(loopBBDict[nodeLabel][0]) + "-" + str(loopBBDict[nodeLabel][1]) + "}\""
                 hasColored = True
 
         # 如果这张图染色了, 就记录一下, 将染色后的图输出到文件夹中
