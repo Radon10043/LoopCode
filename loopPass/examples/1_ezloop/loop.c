@@ -2,6 +2,7 @@
 
 int main(int argc, char **argv) {
   int a = 1, b = 2;
+  scanf("%d", &a);
   for (int i = 0; i < 5; i++) {
     if (a)
       printf("a>0");
