@@ -33,10 +33,10 @@
 using namespace llvm;
 
 namespace {
-  class IdtfyPass : public FunctionPass {
+  class LoopPass : public FunctionPass {
   public:
     static char ID;
-    IdtfyPass()
+    LoopPass()
         : FunctionPass(ID) {}
 
     void getAnalysisUsage(AnalysisUsage &AU) const override;
@@ -45,7 +45,7 @@ namespace {
 } // namespace
 
 
-char IdtfyPass::ID = 0;
+char LoopPass::ID = 0;
 
 
 /**
@@ -87,13 +87,13 @@ static void getDebugLoc(const Instruction *I, std::string &Filename, unsigned &L
 }
 
 
-void IdtfyPass::getAnalysisUsage(AnalysisUsage &AU) const {
+void LoopPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
   AU.addRequired<LoopInfoWrapperPass>();
 }
 
 
-bool IdtfyPass::runOnFunction(Function &F) {
+bool LoopPass::runOnFunction(Function &F) {
 
   std::set<std::string> loopBBSet; // 存储循环BB的集合
   LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
@@ -134,8 +134,8 @@ bool IdtfyPass::runOnFunction(Function &F) {
 
 
 /* 注册Pass */
-static void registerIdtfyPass(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-  PM.add(new IdtfyPass());
+static void registerLoopPass(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
+  PM.add(new LoopPass());
 }
-static RegisterStandardPasses RegisterRnDuPass(PassManagerBuilder::EP_OptimizerLast, registerIdtfyPass);
-static RegisterStandardPasses RegisterRnDuPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerIdtfyPass);
+static RegisterStandardPasses RegisterRnDuPass(PassManagerBuilder::EP_OptimizerLast, registerLoopPass);
+static RegisterStandardPasses RegisterRnDuPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerLoopPass);
