@@ -40,9 +40,6 @@ def node_name (name):
   if is_cg:
     return "\"{%s}\"" % name
   else:
-    # if (name[-1] != ":"):
-    #   return "\"{%s:}\"" % name
-    # return "\"{%s}\"" % name
     return "\"{%s:" % name
 
 #################################
