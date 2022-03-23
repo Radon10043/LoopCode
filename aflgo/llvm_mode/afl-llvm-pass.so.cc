@@ -43,6 +43,8 @@
 /****** Rn add ******/
 #include <algorithm>
 #include <set>
+
+#include "llvm/Analysis/LoopInfo.h"
 /********************/
 
 #include "llvm/ADT/Statistic.h"
@@ -134,9 +136,22 @@ namespace {
 
   };
 
+  class LoopPass : public FunctionPass {
+
+    public:
+
+      static char ID;
+      LoopPass() : FunctionPass(ID) { }
+
+      void getAnalysisUsage(AnalysisUsage &AU) const override;
+      bool runOnFunction(Function &F) override;
+
+  };
+
 }
 
 char AFLCoverage::ID = 0;
+char LoopPass::ID = 1;
 
 static void getDebugLoc(const Instruction *I, std::string &Filename,
                         unsigned &Line) {
@@ -587,7 +602,7 @@ bool AFLCoverage::runOnModule(Module &M) {
         }
 
         /* 在循环BB处插入指定字节至1的指令, 即覆盖里这个循环的话就把共享内存中的指定字节变为1 */
-        /* TODO: IR中可能有多个指令块对应同一个代码块, 用个set避免重复插桩? */
+        /* IR中可能有多个指令块对应同一个代码块, 用个set避免重复插桩 */
         int idx = std::find(loopBBVec.begin(), loopBBVec.end(), bb_name_copy) - loopBBVec.begin();
         if (idx < loopBBNum && instrLoopBBs.insert(bb_name_copy).second) {
           ConstantInt *MapLoopLoc = ConstantInt::get(LargestType, MAP_SIZE + 16 + idx * 8);
@@ -627,10 +642,39 @@ bool AFLCoverage::runOnModule(Module &M) {
 }
 
 
+void LoopPass::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.setPreservesCFG();
+  AU.addRequired<LoopInfoWrapperPass>();
+}
+
+
+/* 将循环基本块写入outDirectory下的LoopBBs.txt */
+bool LoopPass::runOnFunction(Function &F) {
+  if (OutDirectory.empty())
+    return false;
+
+  LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+  std::ofstream fout(OutDirectory + "/LoopBBs.txt", std::ofstream::out | std::ofstream::app);
+
+  for (auto &BB : F) {
+
+    std::string bbname = BB.getName().str();
+
+    bool isLoop = LI.getLoopFor(&BB);
+
+    if (isLoop && !bbname.empty())
+      fout << bbname << "\n";
+  }
+
+  return true;
+}
+
+
 static void registerAFLPass(const PassManagerBuilder &,
                             legacy::PassManagerBase &PM) {
 
   PM.add(new AFLCoverage());
+  PM.add(new LoopPass());
 
 }
 
