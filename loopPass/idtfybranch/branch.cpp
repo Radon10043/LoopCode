@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-20 12:14:46
  * @LastEditors: Radon
- * @LastEditTime: 2022-03-21 16:29:26
+ * @LastEditTime: 2022-03-28 17:32:05
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -93,27 +93,114 @@ static void getDebugLoc(const Instruction *I, std::string &Filename, unsigned &L
 }
 
 
+static bool isBlacklisted(const Function *F) {
+  static const SmallVector<std::string, 8> Blacklist = {
+      "asan.",
+      "llvm.",
+      "sancov.",
+      "__ubsan_handle_",
+      "free",
+      "malloc",
+      "calloc",
+      "realloc"};
+
+  for (auto const &BlacklistFunc : Blacklist) {
+    if (F->getName().startswith(BlacklistFunc)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 bool BranchPass::runOnModule(Module &M) {
   for (auto &F : M) {
+    /* Black list of function names */
+    if (isBlacklisted(&F)) {
+      continue;
+    }
+
+    /* AFLGo的预处理部分过程, 直接复制过来的 */
     for (auto &BB : F) {
-      std::string bbOriginName = BB.getName().str();
-      std::string bbname, filename;
-      unsigned line = 0;
+
+      std::string bb_name("");
+      std::string filename;
+      unsigned line;
 
       for (auto &I : BB) {
         getDebugLoc(&I, filename, line);
-        if (!filename.empty() && line) {
-          size_t found = filename.find_last_of("/\\");
-          if (found != std::string::npos)   // 只保留文件名
+
+        /* Don't worry about external libs */
+        static const std::string Xlibs("/usr/");
+        if (filename.empty() || line == 0 || !filename.compare(0, Xlibs.size(), Xlibs))
+          continue;
+
+        if (bb_name.empty()) {
+
+          std::size_t found = filename.find_last_of("/\\");
+          if (found != std::string::npos)
             filename = filename.substr(found + 1);
-          bbname = filename + ":" + std::to_string(line);
-          break;
+
+          bb_name = filename + ":" + std::to_string(line);
         }
       }
 
-      size_t found = bbOriginName.find("if.");
-      if (found != std::string::npos && !bbname.empty()) {
-        outs() << "I found \"if\" in " << bbname << "!\n";
+      if (!bb_name.empty()) {
+
+        BB.setName(bb_name + ":");
+        if (!BB.hasName()) {
+          std::string newname = bb_name + ":";
+          Twine t(newname);
+          SmallString<256> NameData;
+          StringRef NameRef = t.toStringRef(NameData);
+          MallocAllocator Allocator;
+          BB.setValueName(ValueName::Create(NameRef, Allocator));
+        }
+      }
+    }
+
+    /* My process*/
+    for (auto &BB : F) {
+      std::string filename;
+      unsigned line = 0;
+
+      for (auto &I : BB) {
+        std::string loc;
+        getDebugLoc(&I, filename, line);
+
+        if (!filename.empty() && line) { // 获取当前指令所对应的位置
+          size_t found = filename.find_last_of("/\\");
+          if (found != std::string::npos)
+            filename = filename.substr(found + 1);
+          loc = filename + ":" + std::to_string(line);
+        }
+
+        if (loc.empty())
+          continue;
+
+        /* 通过BranchInst与SwitchInst对分支进行分析 */
+        if (BranchInst *BI = dyn_cast<BranchInst>(&I)) { // 若当前指令能转换为BranchInst, 证明它是一个IF-ELSE分支?
+          if (!BI->isConditional())                      // 若这个指令没有条件, 则跳过
+            continue;
+
+          outs() << "IF-ELSE:" << loc << "\n";
+
+          int n = BI->getNumSuccessors(); // 获取后继者数量, 并进行遍历
+          for (int i = 0; i < n; i++) {
+            outs() << BI->getSuccessor(i)->getName() << ",";
+          }
+          outs() << "\n\n";
+
+        } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) { // 若当前指令能转换为SwitchInst, 正民它是一个SWITCH-CASE分支?
+          outs() << "SWITCH-CASE:" << loc << "\n";
+
+          int n = SI->getNumSuccessors();
+          for (int i = 0; i < n; i++) {
+            outs() << SI->getSuccessor(i)->getName() << ",";
+          }
+          outs() << "\n";
+        }
       }
     }
   }
