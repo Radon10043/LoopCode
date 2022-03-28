@@ -101,7 +101,7 @@ bool LoopPass::runOnFunction(Function &F) {
 
   for (auto &BB : F) {
 
-    std::string bbName;
+    std::string bbname;
 
     for (auto &I : BB) {
 
@@ -115,14 +115,14 @@ bool LoopPass::runOnFunction(Function &F) {
         filename = filename.substr(found + 1);
 
       /* 设置基本块名称 */
-      if (bbName.empty() && !filename.empty() && line) {
-        bbName = filename + ":" + std::to_string(line);
+      if (bbname.empty() && !filename.empty() && line) {
+        bbname = filename + ":" + std::to_string(line);
       }
     }
 
     bool isLoop = LI.getLoopFor(&BB);
-    if (isLoop && !bbName.empty())
-      loopBBSet.insert(bbName);
+    if (isLoop && !bbname.empty())
+      loopBBSet.insert(bbname);
 
     /* 将集合中的内容写入文件 */
     for (auto loopBB : loopBBSet)
