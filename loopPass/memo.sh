@@ -2,7 +2,7 @@
 # @Author: Radon
 # @Date: 2022-02-20 16:43:09
  # @LastEditors: Radon
- # @LastEditTime: 2022-03-20 12:53:43
+ # @LastEditTime: 2022-03-28 15:19:59
 # @Description: Hi, say something
 ###
 
@@ -13,6 +13,7 @@ clang -g -S -emit-llvm -Xclang -load -Xclang build/idtfyloop/libLoopPass.so exam
 
 # BranchPass
 clang -g -S -emit-llvm -fno-discard-value-names -Xclang -load -Xclang build/idtfybranch/libBranchPass.so examples/2_in-dep-loop/loop.c -o examples/2_in-dep-loop/loop.ll
+clang -g -S -emit-llvm -fno-discard-value-names -Xclang -load -Xclang build/idtfybranch/libBranchPass.so examples/3_loopBranch/lb.c -o examples/3_loopBranch/lb.ll
 
 # 获得mjs的循环BB
 cd ~/Documents/fuzzing/mjs/mjs-issues-78
