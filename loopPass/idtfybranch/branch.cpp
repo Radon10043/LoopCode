@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-20 12:14:46
  * @LastEditors: Radon
- * @LastEditTime: 2022-03-28 17:32:05
+ * @LastEditTime: 2022-03-29 14:51:28
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -192,7 +192,7 @@ bool BranchPass::runOnModule(Module &M) {
           }
           outs() << "\n\n";
 
-        } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) { // 若当前指令能转换为SwitchInst, 正民它是一个SWITCH-CASE分支?
+        } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) { // 若当前指令能转换为SwitchInst, 证明它是一个SWITCH-CASE分支?
           outs() << "SWITCH-CASE:" << loc << "\n";
 
           int n = SI->getNumSuccessors();
@@ -209,8 +209,8 @@ bool BranchPass::runOnModule(Module &M) {
 
 
 /* 注册Pass */
-static void registerBranchPass(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
+static void registerPass2(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
   PM.add(new BranchPass());
 }
-static RegisterStandardPasses RegisterRnDuPass(PassManagerBuilder::EP_OptimizerLast, registerBranchPass);
-static RegisterStandardPasses RegisterRnDuPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerBranchPass);
+static RegisterStandardPasses RegisterRnDuPass(PassManagerBuilder::EP_OptimizerLast, registerPass2);
+static RegisterStandardPasses RegisterRnDuPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerPass2);
