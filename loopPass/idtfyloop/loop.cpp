@@ -134,8 +134,8 @@ bool LoopPass::runOnFunction(Function &F) {
 
 
 /* 注册Pass */
-static void registerLoopPass(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
+static void registerPass1(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
   PM.add(new LoopPass());
 }
-static RegisterStandardPasses RegisterRnDuPass(PassManagerBuilder::EP_OptimizerLast, registerLoopPass);
-static RegisterStandardPasses RegisterRnDuPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerLoopPass);
+static RegisterStandardPasses RegisterRnDuPass(PassManagerBuilder::EP_OptimizerLast, registerPass1);
+static RegisterStandardPasses RegisterRnDuPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerPass1);
