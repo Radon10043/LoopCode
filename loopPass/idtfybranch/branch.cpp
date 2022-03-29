@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-20 12:14:46
  * @LastEditors: Radon
- * @LastEditTime: 2022-03-29 15:27:27
+ * @LastEditTime: 2022-03-29 15:29:49
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -224,22 +224,12 @@ bool BranchPass::runOnModule(Module &M) {
 
     /* My process*/
     for (auto &BB : F) {
-      std::string filename;
-      unsigned line = 0;
+
+      std::string bbname = BB.getName().str();
+      if (bbname.empty())
+        continue;
 
       for (auto &I : BB) {
-        std::string loc;
-        getDebugLoc(&I, filename, line);
-
-        if (!filename.empty() && line) { // 获取当前指令所对应的位置
-          size_t found = filename.find_last_of("/\\");
-          if (found != std::string::npos)
-            filename = filename.substr(found + 1);
-          loc = filename + ":" + std::to_string(line);
-        }
-
-        if (loc.empty())
-          continue;
 
         /* 通过BranchInst与SwitchInst对分支进行分析 */
         if (BranchInst *BI = dyn_cast<BranchInst>(&I)) { // 若当前指令能转换为BranchInst, 证明它是一个IF-ELSE分支?
@@ -248,7 +238,7 @@ bool BranchPass::runOnModule(Module &M) {
           if (loopHeaderUSet.find(BB.getName().str()) != loopHeaderUSet.end())
             continue;
 
-          outs() << "IF-ELSE:" << loc << "\n";
+          outs() << "IF-ELSE:" << bbname << "\n";
 
           int n = BI->getNumSuccessors(); // 获取后继者数量, 并进行遍历
           for (int i = 0; i < n; i++) {
@@ -257,7 +247,7 @@ bool BranchPass::runOnModule(Module &M) {
           outs() << "\n\n";
 
         } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) { // 若当前指令能转换为SwitchInst, 证明它是一个SWITCH-CASE分支?
-          outs() << "SWITCH-CASE:" << loc << "\n";
+          outs() << "SWITCH-CASE:" << bbname << "\n";
 
           int n = SI->getNumSuccessors();
           for (int i = 0; i < n; i++) {
