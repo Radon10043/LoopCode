@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-20 12:14:46
  * @LastEditors: Radon
- * @LastEditTime: 2022-03-29 14:51:28
+ * @LastEditTime: 2022-03-29 15:27:27
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -39,7 +39,22 @@
 #include "llvm/Analysis/LoopInfo.h"
 using namespace llvm;
 
+
+/* 全局变量 */
+std::unordered_set<std::string> loopHeaderUSet;
+
+
 namespace {
+  class LoopPass : public FunctionPass {
+  public:
+    static char ID;
+    LoopPass()
+        : FunctionPass(ID) {}
+
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
+    bool runOnFunction(Function &F) override;
+  };
+
   class BranchPass : public ModulePass {
   public:
     static char ID;
@@ -51,6 +66,7 @@ namespace {
 } // namespace
 
 
+char LoopPass::ID = 1;
 char BranchPass::ID = 0;
 
 
@@ -110,6 +126,52 @@ static bool isBlacklisted(const Function *F) {
     }
   }
 
+  return false;
+}
+
+
+void LoopPass::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.setPreservesCFG();
+  AU.addRequired<LoopInfoWrapperPass>();
+}
+
+
+bool LoopPass::runOnFunction(Function &F) {
+
+  if (isBlacklisted(&F)) {
+    return false;
+  }
+
+  LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+
+  for (auto &BB : F) {
+
+    std::string bbname;
+
+    for (auto &I : BB) {
+
+      std::string filename;
+      unsigned line;
+      getDebugLoc(&I, filename, line);
+
+      /* 仅保留文件名与行号 */
+      std::size_t found = filename.find_last_of("/\\");
+      if (found != std::string::npos)
+        filename = filename.substr(found + 1);
+
+      /* 设置基本块名称 */
+      if (bbname.empty() && !filename.empty() && line) {
+        bbname = filename + ":" + std::to_string(line) + ":";
+        break;
+      }
+    }
+
+    bool isLoopHeader = LI.isLoopHeader(&BB); // 检查该BB是否是循环的入口
+    bool isLoop = LI.getLoopFor(&BB);         // 检查该BB是否是循环
+
+    if (isLoopHeader && !bbname.empty()) // 如果是循环的入口, 加入集合, 在后续的识别分支操作中, 忽略掉循环入口BB
+      loopHeaderUSet.insert(bbname);
+  }
   return false;
 }
 
@@ -183,6 +245,8 @@ bool BranchPass::runOnModule(Module &M) {
         if (BranchInst *BI = dyn_cast<BranchInst>(&I)) { // 若当前指令能转换为BranchInst, 证明它是一个IF-ELSE分支?
           if (!BI->isConditional())                      // 若这个指令没有条件, 则跳过
             continue;
+          if (loopHeaderUSet.find(BB.getName().str()) != loopHeaderUSet.end())
+            continue;
 
           outs() << "IF-ELSE:" << loc << "\n";
 
@@ -210,6 +274,7 @@ bool BranchPass::runOnModule(Module &M) {
 
 /* 注册Pass */
 static void registerPass2(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
+  PM.add(new LoopPass());
   PM.add(new BranchPass());
 }
 static RegisterStandardPasses RegisterRnDuPass(PassManagerBuilder::EP_OptimizerLast, registerPass2);
