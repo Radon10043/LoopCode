@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-03-30 11:40:43
+ * @LastEditTime: 2022-04-07 12:42:36
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -43,6 +43,8 @@ using namespace llvm;
 /* 全局变量 */
 std::unordered_set<std::string> loopHeaderUSet;
 std::set<std::string> loopBBSet;
+std::string loopHeaderName;
+std::map<std::string, std::set<std::string>> loopMap; // <循环头, 循环基本块集合>
 
 
 namespace {
@@ -169,17 +171,26 @@ bool LoopPass::runOnFunction(Function &F) {
 
     bool isLoopHeader = LI.isLoopHeader(&BB); // 检查该BB是否是循环的入口
     bool isLoop = LI.getLoopFor(&BB);         // 检查该BB是否是循环
+    unsigned depth = LI.getLoopDepth(&BB);    // 该BB所处的循环深度, 0表示不在循环, 1表示在1层循环, 2表示在2层...
 
-    if (isLoopHeader && !bbname.empty()) // 如果是循环的入口, 加入集合, 在后续的识别分支操作中, 忽略掉循环入口BB
+    if (isLoopHeader && !bbname.empty()) { // 如果是循环的入口, 加入集合, 在后续的识别分支操作中, 忽略掉循环入口BB
       loopHeaderUSet.insert(bbname);
-    if (isLoop && !bbname.empty()) // 如果是循环基本块, 加入集合
+      if (depth == 1)
+        loopHeaderName = bbname;
+    }
+
+    if (isLoop && !bbname.empty()) { // 如果是循环基本块, 加入集合
       loopBBSet.insert(bbname);
+      loopMap[loopHeaderName].insert(bbname);
+    }
   }
   return false;
 }
 
 
 bool BranchPass::runOnModule(Module &M) {
+
+  loopHeaderName.clear();
 
   for (auto &F : M) {
     /* Black list of function names */
@@ -257,11 +268,17 @@ bool BranchPass::runOnModule(Module &M) {
           for (int i = 0; i < n; i++) {
             outs() << SI->getSuccessor(i)->getName() << ",";
           }
-          outs() << "\n";
+          outs() << "\n\n";
         }
       }
     }
   }
+
+  for (auto it = loopMap.begin(); it != loopMap.end(); it++) {
+    if (it->second.size() > 2)
+      outs() << it->first << " is a complex loop\n";
+  }
+
   return false;
 }
 
