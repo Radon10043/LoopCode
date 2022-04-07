@@ -1422,7 +1422,7 @@ EXP_ST void setup_shm(void) {
   memset(virgin_crash, 255, MAP_SIZE);
 
   /* Allocate 24 byte more for distance info */
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE + 16 + 8000, IPC_CREAT | IPC_EXCL | 0600);
+  shm_id = shmget(IPC_PRIVATE, MAP_SIZE + 16 + 80000, IPC_CREAT | IPC_EXCL | 0600);
 
   if (shm_id < 0) PFATAL("shmget() failed");
 
@@ -2346,7 +2346,7 @@ static u8 run_target(char** argv, u32 timeout) {
      must prevent any earlier operations from venturing into that
      territory. */
 
-  memset(trace_bits, 0, MAP_SIZE + 16 + 8000);
+  memset(trace_bits, 0, MAP_SIZE + 16 + 80000);
   MEM_BARRIER();
 
   /* If we're running in "dumb" mode, we can't rely on the fork server
@@ -4899,7 +4899,7 @@ static u32 calculate_score(struct queue_entry* q) {
   // fprintf(stderr, "[Time %llu] q->distance: %4lf, max_distance: %4lf min_distance: %4lf, T: %4.3lf, power_factor: %4.3lf, adjusted perf_score: %4d\n", t, q->distance, max_distance, min_distance, T, power_factor, perf_score);
 
   /* Radon-DEBUGGING */
-  fprintf(stderr, "loop_cnt_cov[0]: %llu.\n", loop_cov_cnt[0]);
+  // fprintf(stderr, "loop_cnt_cov[0]: %llu.\n", loop_cov_cnt[0]);
 
   return perf_score;
 

@@ -39,14 +39,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
-/****** Rn add ******/
 #include <algorithm>
 #include <set>
+#include <unordered_set>
+#include <map>
 
 #include "llvm/Analysis/LoopInfo.h"
-/********************/
-
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -70,7 +68,12 @@
 
 using namespace llvm;
 
+/* Global */
 std::set<std::string> instrLoopBBs;   // 使用集合记录已插桩的LoopBBs, 避免重复插桩
+std::unordered_set<std::string> loopHeaderUSet;
+std::set<std::string> loopBBSet;
+std::string loopHeaderName;
+std::map<std::string, std::set<std::string>> loopMap; // <循环头, 循环基本块集合>
 
 cl::opt<std::string> DistanceFile(
     "distance",
@@ -211,6 +214,16 @@ bool AFLCoverage::runOnModule(Module &M) {
   bool is_aflgo = false;
   bool is_aflgo_preprocessing = false;
 
+  /* 将循环基本块数量大于2的循环中包含的BB输入到LoopBBs.txt中 */
+  std::ofstream fout(OutDirectory + "/LoopBBs.txt", std::ofstream::out | std::ofstream::app);
+  for (auto it = loopMap.begin(); it != loopMap.end(); it++) {
+    if (it->second.size() > 2) {
+      for (auto bb : it->second)
+        fout << bb << "\n";
+    }
+  }
+  fout.close();
+
   if (!TargetsFile.empty() && !DistanceFile.empty()) {
     FATAL("Cannot specify both '-targets' and '-distance'!");
     return false;
@@ -313,8 +326,7 @@ bool AFLCoverage::runOnModule(Module &M) {
   int inst_blocks = 0;
 
   /* 读取循环基本块(循环基本块需要手动指定) */
-  /* 目前共享内存的长度是 MAP_SIZE + 16 + 8000字节, 最多存储1000个循环BB */
-  /* 用args的方式读取LoopBBs.txt会导致后续的基本块识别出错? */
+  /* 目前共享内存的长度是 MAP_SIZE + 16 + 80000字节, 最多存储10000个循环BB */
   errs() << "loop file: " << LoopBBsFile << "\n";
   std::ifstream fin(LoopBBsFile);
   std::string loopBB;
@@ -653,17 +665,48 @@ bool LoopPass::runOnFunction(Function &F) {
   if (OutDirectory.empty())
     return false;
 
+  if (isBlacklisted(&F)) {
+    return false;
+  }
+
   LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  std::ofstream fout(OutDirectory + "/LoopBBs.txt", std::ofstream::out | std::ofstream::app);
 
   for (auto &BB : F) {
 
-    std::string bbname = BB.getName().str();
+    std::string bbname;
 
-    bool isLoop = LI.getLoopFor(&BB);
+    for (auto &I : BB) {
 
-    if (isLoop && !bbname.empty())
-      fout << bbname << "\n";
+      std::string filename;
+      unsigned line;
+      getDebugLoc(&I, filename, line);
+
+      /* 仅保留文件名与行号 */
+      std::size_t found = filename.find_last_of("/\\");
+      if (found != std::string::npos)
+        filename = filename.substr(found + 1);
+
+      /* 设置基本块名称 */
+      if (bbname.empty() && !filename.empty() && line) {
+        bbname = filename + ":" + std::to_string(line);
+        break;
+      }
+    }
+
+    bool isLoopHeader = LI.isLoopHeader(&BB); // 检查该BB是否是循环的入口
+    bool isLoop = LI.getLoopFor(&BB);         // 检查该BB是否是循环
+    unsigned depth = LI.getLoopDepth(&BB);    // 该BB所处的循环深度, 0表示不在循环, 1表示在1层循环, 2表示在2层...
+
+    if (isLoopHeader && !bbname.empty()) { // 如果是循环的入口, 加入集合, 在后续的识别分支操作中, 忽略掉循环入口BB
+      loopHeaderUSet.insert(bbname);
+      if (depth == 1)
+        loopHeaderName = bbname;
+    }
+
+    if (isLoop && !bbname.empty()) { // 如果是循环基本块, 加入集合
+      loopBBSet.insert(bbname);
+      loopMap[loopHeaderName].insert(bbname);
+    }
   }
 
   return true;
@@ -673,8 +716,8 @@ bool LoopPass::runOnFunction(Function &F) {
 static void registerAFLPass(const PassManagerBuilder &,
                             legacy::PassManagerBase &PM) {
 
-  PM.add(new AFLCoverage());
   PM.add(new LoopPass());
+  PM.add(new AFLCoverage());
 
 }
 

@@ -317,7 +317,7 @@
 #define MAP_SIZE            (1 << MAP_SIZE_POW2)
 
 /* Rn add */
-#define MAX_RECORD_LOOP_NUM 800
+#define MAX_RECORD_LOOP_NUM 10000
 
 /* Maximum allocator request size (keep well under INT_MAX): */
 

@@ -171,7 +171,7 @@ static void setup_shm(void) {
   u8* shm_str;
 
   // Allocate 16 more bytes (used by afl-fuzz distances)
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE + 16 + 8000, IPC_CREAT | IPC_EXCL | 0600);
+  shm_id = shmget(IPC_PRIVATE, MAP_SIZE + 16 + 80000, IPC_CREAT | IPC_EXCL | 0600);
 
   if (shm_id < 0) PFATAL("shmget() failed");
 
