@@ -2,17 +2,23 @@ import tensorflow as tf
 import numpy as np
 import graphviz
 
+x_size = 7
+y_size = 3
+
 x_data, y_data = [], []
 for i in range(100):
     value0 = np.random.uniform(0, 50)
     value1 = np.random.uniform(0, 50)
     value2 = np.random.uniform(0, 50)
     value3 = np.random.uniform(0, 50)
-    x_data.append([value0, value1, value2, value3])
-    check = (value0 + value3) * 1
-    if check > 60:
+    value4 = np.random.uniform(0, 50)
+    value5 = np.random.uniform(0, 50)
+    value6 = np.random.uniform(0, 50)
+    x_data.append([value0, value1, value2, value3, value4, value5, value6])
+    check = (value1 + value2) * 2 - value0 * 2
+    if check > 110:
         y_data.append(2)
-    elif check > 40:
+    elif check > 100:
         y_data.append(1)
     else:
         y_data.append(0)
@@ -32,12 +38,20 @@ x_test = tf.cast(x_test, tf.float32)
 train_db = tf.data.Dataset.from_tensor_slices((x_train, y_train)).batch(32)
 test_db = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(32)
 
-w1 = tf.Variable(tf.random.truncated_normal([4, 3], stddev=0.1, seed=1))
+"""
+隐藏层第1个。输入为特征的数量，输出为3层权重和偏置
+"""
+w1 = tf.Variable(tf.random.truncated_normal([x_size, 3], stddev=0.1, seed=1))
 b1 = tf.Variable(tf.random.truncated_normal([3], stddev=0.1, seed=1))
-
+"""
+隐藏层第2个。
+"""
 w2 = tf.Variable(tf.random.truncated_normal([3, 3], stddev=0.1, seed=1))
 b2 = tf.Variable(tf.random.truncated_normal([3], stddev=0.1, seed=1))
 
+"""
+隐藏层第3个。输出为3个坐标（不确定）
+"""
 w3 = tf.Variable(tf.random.truncated_normal([3, 3], stddev=0.1, seed=1))
 b3 = tf.Variable(tf.random.truncated_normal([3], stddev=0.1, seed=1))
 
@@ -94,14 +108,14 @@ for x_test, y_test in test_db:
 
 acc = total_correct / y_test.shape[0]
 print('test_acc', acc.numpy())
+print("======")
 
 
 def euclidean(point1, point2):
     diff1 = point1[0] - point2[0]
     diff2 = point1[1] - point2[1]
     diff3 = point1[2] - point2[2]
-    dis = np.sqrt(diff1 ** 2 + diff2 ** 2 + diff3 ** 2)
-    return dis
+    return np.sqrt(diff1 ** 2 + diff2 ** 2 + diff3 ** 2)
 
 
 def calculate(start, end):
@@ -118,12 +132,22 @@ def calculate(start, end):
     dis_sum = 0
     for point1_index in [0, 1, 2, 3, 4, 5, 6, 7, 8]:
         for point2_index in range(point1_index + 1, 9):
-            dis = euclidean(paths[point1_index], paths[point2_index])
-            dis_sum += dis
+            dis_sum += euclidean(paths[point1_index], paths[point2_index])
     return dis_sum
 
 
-for y_i in range(3):
-    for x_i in range(4):
-        print(f"对于第{y_i}号输出神经元，第{x_i}号输入神经元的权重距离和为: {calculate(x_i, y_i)}")
+for y_i in range(y_size):
+    result = []
+    for x_i in range(x_size):
+        dis = calculate(x_i, y_i)
+        print(f"对于第 {y_i} 号输出神经元，第 {x_i} 号输入神经元的权重距离和为: {dis}")
+        result.append((dis, x_i))
+    result.sort(reverse=True)
+    sorted_x_i = []
+    for index, (_, one_sorted_x_i) in enumerate(result):
+        """
+        输出排序后的结果，按照权重距离和由大到小输出
+        """
+        sorted_x_i.append(one_sorted_x_i)
+    print(sorted_x_i)
     print("======")
