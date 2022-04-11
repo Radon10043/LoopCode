@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-import graphviz
 
 x_size = 7
 y_size = 3
