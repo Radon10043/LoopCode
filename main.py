@@ -1,26 +1,59 @@
+"""
+基于权重距离累加和量化全连接神经网络输出与输入之间的关系
+
+@author: yagol
+2022.4.11 TODO:标签与输出层之间的关系？
+"""
+from collections import Counter
+
 import tensorflow as tf
 import numpy as np
 
-x_size = 7
+x_size = 10
 y_size = 3
 
 x_data, y_data = [], []
 for i in range(100):
-    value0 = np.random.uniform(0, 50)
-    value1 = np.random.uniform(0, 50)
-    value2 = np.random.uniform(0, 50)
-    value3 = np.random.uniform(0, 50)
-    value4 = np.random.uniform(0, 50)
-    value5 = np.random.uniform(0, 50)
-    value6 = np.random.uniform(0, 50)
-    x_data.append([value0, value1, value2, value3, value4, value5, value6])
-    check = (value1 + value2) * 2 - value0 * 2
-    if check > 110:
-        y_data.append(2)
-    elif check > 100:
-        y_data.append(1)
+    max_random = 100
+    value0 = np.random.uniform(0, max_random)
+    value1 = np.random.uniform(0, max_random)
+    value2 = np.random.uniform(0, max_random)
+    value3 = np.random.uniform(0, max_random)
+    value4 = np.random.uniform(0, max_random)
+    value5 = np.random.uniform(0, max_random)
+    value6 = np.random.uniform(0, max_random)
+    value7 = np.random.uniform(0, max_random)
+    value8 = np.random.uniform(0, max_random)
+    value9 = np.random.uniform(0, max_random)
+    x_data.append([value0, value1, value2, value3, value4, value5, value6, value7, value8, value9])
+    check_label1 = value1
+    check_label2 = value2
+    check_label3 = value3
+    label = 0
+    if check_label1 > 25:
+        if check_label2 > 25:
+            if check_label3 > 25:
+                label = 1
+            else:
+                label = 2
+        else:
+            if check_label3 > 25:
+                label = 3
+            else:
+                label = 4
     else:
-        y_data.append(0)
+        if check_label2 > 25:
+            if check_label3 > 25:
+                label = 5
+            else:
+                label = 6
+        else:
+            if check_label3 > 25:
+                label = 7
+            else:
+                label = 8
+    y_data.append(label)
+
 x_data = np.array(x_data)
 y_data = np.array(y_data)
 
@@ -51,7 +84,7 @@ b2 = tf.Variable(tf.random.truncated_normal([3], stddev=0.1, seed=1))
 """
 隐藏层第3个。输出为3个坐标（不确定）
 """
-w3 = tf.Variable(tf.random.truncated_normal([3, 3], stddev=0.1, seed=1))
+w3 = tf.Variable(tf.random.truncated_normal([3, 3], stddev=0.1, seed=1))  # FIXME:后面的3能不能改？与什么相关？
 b3 = tf.Variable(tf.random.truncated_normal([3], stddev=0.1, seed=1))
 
 loss_all = 0  # 损失值
