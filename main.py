@@ -3,6 +3,7 @@
 
 @author: yagol
 2022.4.11 TODO:标签与输出层之间的关系？
+2022.4.12 TODO:能不能转换为多标签？
 """
 from collections import Counter
 
@@ -84,7 +85,7 @@ b2 = tf.Variable(tf.random.truncated_normal([3], stddev=0.1, seed=1))
 """
 隐藏层第3个。输出为3个坐标（不确定）
 """
-w3 = tf.Variable(tf.random.truncated_normal([3, 3], stddev=0.1, seed=1))  # FIXME:后面的3能不能改？与什么相关？
+w3 = tf.Variable(tf.random.truncated_normal([3, 3], stddev=0.1, seed=1))
 b3 = tf.Variable(tf.random.truncated_normal([3], stddev=0.1, seed=1))
 
 loss_all = 0  # 损失值
