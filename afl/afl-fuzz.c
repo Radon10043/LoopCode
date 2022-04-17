@@ -289,6 +289,8 @@ static u32 a_extras_cnt;              /* Total number of tokens available */
 
 static u8* (*post_handler)(u8* buf, u32* len);
 
+static u32 stop_time = 60;            /* Fuzzing time */
+
 /* Interesting values, as per config.h */
 
 static s8  interesting_8[]  = { INTERESTING_8 };
@@ -912,6 +914,9 @@ static inline u8 has_new_bits(u8* virgin_map) {
   u64* virgin  = (u64*)virgin_map;
 
   u32  i = (MAP_SIZE >> 3);
+
+  if (get_cur_time() - start_time > stop_time * 60000)
+    stop_soon = 2;
 
 #else
 
@@ -7795,7 +7800,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:")) > 0)
 
     switch (opt) {
 
@@ -7979,6 +7984,12 @@ int main(int argc, char** argv) {
 
         /* Version number has been printed already, just quit. */
         exit(0);
+
+      case 'k': /* Fuzzing time */
+
+          if (sscanf(optarg, "%u", &stop_time) < 1) FATAL("Bad syntax used for -k");
+
+        break;
 
       default:
 
