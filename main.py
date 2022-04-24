@@ -10,50 +10,11 @@ from collections import Counter
 import tensorflow as tf
 import numpy as np
 
+print(tf.__version__)
 x_size = 10
 y_size = 3
 
 x_data, y_data = [], []
-for i in range(100):
-    max_random = 100
-    value0 = np.random.uniform(0, max_random)
-    value1 = np.random.uniform(0, max_random)
-    value2 = np.random.uniform(0, max_random)
-    value3 = np.random.uniform(0, max_random)
-    value4 = np.random.uniform(0, max_random)
-    value5 = np.random.uniform(0, max_random)
-    value6 = np.random.uniform(0, max_random)
-    value7 = np.random.uniform(0, max_random)
-    value8 = np.random.uniform(0, max_random)
-    value9 = np.random.uniform(0, max_random)
-    x_data.append([value0, value1, value2, value3, value4, value5, value6, value7, value8, value9])
-    check_label1 = value1
-    check_label2 = value2
-    check_label3 = value3
-    label = 0
-    if check_label1 > 25:
-        if check_label2 > 25:
-            if check_label3 > 25:
-                label = 1
-            else:
-                label = 2
-        else:
-            if check_label3 > 25:
-                label = 3
-            else:
-                label = 4
-    else:
-        if check_label2 > 25:
-            if check_label3 > 25:
-                label = 5
-            else:
-                label = 6
-        else:
-            if check_label3 > 25:
-                label = 7
-            else:
-                label = 8
-    y_data.append(label)
 
 x_data = np.array(x_data)
 y_data = np.array(y_data)
