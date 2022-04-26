@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-04-07 12:42:36
+ * @LastEditTime: 2022-04-26 17:24:09
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -10,6 +10,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <stack>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -40,28 +41,21 @@
 using namespace llvm;
 
 
-/* 全局变量 */
-std::unordered_set<std::string> loopHeaderUSet;
-std::set<std::string> loopBBSet;
-std::string loopHeaderName;
-std::map<std::string, std::set<std::string>> loopMap; // <循环头, 循环基本块集合>
-
-
 namespace {
-  class LoopPass : public FunctionPass {
+  class MyPass : public FunctionPass {
   public:
     static char ID;
-    LoopPass()
+    MyPass()
         : FunctionPass(ID) {}
 
     void getAnalysisUsage(AnalysisUsage &AU) const override;
     bool runOnFunction(Function &F) override;
   };
 
-  class BranchPass : public ModulePass {
+  class AFLGoPass : public ModulePass {
   public:
     static char ID;
-    BranchPass()
+    AFLGoPass()
         : ModulePass(ID) {}
 
     bool runOnModule(Module &M) override;
@@ -69,8 +63,8 @@ namespace {
 } // namespace
 
 
-char LoopPass::ID = 1;
-char BranchPass::ID = 0;
+char MyPass::ID = 1;
+char AFLGoPass::ID = 0;
 
 
 /**
@@ -133,21 +127,56 @@ static bool isBlacklisted(const Function *F) {
 }
 
 
-void LoopPass::getAnalysisUsage(AnalysisUsage &AU) const {
+/**
+ * @brief 获取基本块的名字
+ *
+ * @param BB
+ * @return std::string
+ */
+static std::string getBasicBlockName(BasicBlock *BB) {
+  std::string bbname, filename;
+  unsigned line = 0;
+
+  for (auto &I : *BB) {
+
+    getDebugLoc(&I, filename, line);
+
+    if (!filename.empty() && line) {
+
+      size_t found = filename.find_last_of("\\/");
+      if (found != std::string::npos)
+        filename = filename.substr(found + 1);
+
+      bbname = filename + ":" + std::to_string(line);
+      return bbname;
+    }
+  }
+
+  return "empty?";
+}
+
+
+void MyPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
   AU.addRequired<LoopInfoWrapperPass>();
 }
 
 
-bool LoopPass::runOnFunction(Function &F) {
+// TODO: 分支和基本块的深度都是相对于函数而言的, 所以都写在runOnFunction就行了
+bool MyPass::runOnFunction(Function &F) {
 
   if (isBlacklisted(&F)) {
     return false;
   }
 
   LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+  std::ofstream fout("./LOOPINFO.txt", std::ofstream::out | std::ofstream::app);
+  std::stack<BasicBlock *> stk;
 
   for (auto &BB : F) {
+
+    if (!stk.empty() && &BB == stk.top())
+      stk.pop();
 
     std::string bbname;
 
@@ -164,33 +193,47 @@ bool LoopPass::runOnFunction(Function &F) {
 
       /* 设置基本块名称 */
       if (bbname.empty() && !filename.empty() && line) {
-        bbname = filename + ":" + std::to_string(line) + ":";
+        bbname = filename + ":" + std::to_string(line);
         break;
       }
     }
 
-    bool isLoopHeader = LI.isLoopHeader(&BB); // 检查该BB是否是循环的入口
-    bool isLoop = LI.getLoopFor(&BB);         // 检查该BB是否是循环
-    unsigned depth = LI.getLoopDepth(&BB);    // 该BB所处的循环深度, 0表示不在循环, 1表示在1层循环, 2表示在2层...
+    bool isLoopHeader = LI.isLoopHeader(&BB);  // 检查该BB是否是循环的入口
+    bool isLoop = LI.getLoopFor(&BB);          // 检查该BB是否是循环
+    unsigned loopDepth = LI.getLoopDepth(&BB); // 该BB所处的循环深度, 0表示不在循环, 1表示在1层循环, 2表示在2层...
 
-    if (isLoopHeader && !bbname.empty()) { // 如果是循环的入口, 加入集合, 在后续的识别分支操作中, 忽略掉循环入口BB
-      loopHeaderUSet.insert(bbname);
-      if (depth == 1)
-        loopHeaderName = bbname;
+    // 如果这个基本块是循环头, 查看循环头对应的true与false分支
+    if (isLoopHeader) {
+      for (auto &I : BB) {
+        if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
+          if (BI->isConditional()) {
+            BasicBlock *BBT = BI->getSuccessor(0); // 根据观察, 似乎getSuccessor(0)是Branch中true分支的基本块, 1是false分支的基本块
+            BasicBlock *BBF = BI->getSuccessor(1);
+            outs() << F.getName() << ": LOOP: " << bbname << ", T: " << getBasicBlockName(BBT) << ", F: " << getBasicBlockName(BBF) << ", loop depth: " << loopDepth << "\n";
+          }
+        }
+      }
     }
 
-    if (isLoop && !bbname.empty()) { // 如果是循环基本块, 加入集合
-      loopBBSet.insert(bbname);
-      loopMap[loopHeaderName].insert(bbname);
+    // 如果这个基本块中的指令可以转换为分支指令, 输出其所在基本块的T,F分支基本块并判断深度 (深度没找到现成的方法, 目前用的栈)
+    for (auto &I : BB) {
+      if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
+        if (!BI->isConditional())
+          break;
+        BasicBlock *BBT = BI->getSuccessor(0);
+        BasicBlock *BBF = BI->getSuccessor(1);
+        outs() << F.getName() << ": Branch: " << bbname << ", T: " << getBasicBlockName(BBT) << ", F: " << getBasicBlockName(BBF) << " branch depth: " << stk.size() << "\n";
+        stk.push(BBF);
+      }
     }
+
+    // TODO: SwitchInst
   }
   return false;
 }
 
 
-bool BranchPass::runOnModule(Module &M) {
-
-  loopHeaderName.clear();
+bool AFLGoPass::runOnModule(Module &M) {
 
   for (auto &F : M) {
     /* Black list of function names */
@@ -236,47 +279,6 @@ bool BranchPass::runOnModule(Module &M) {
         }
       }
     }
-
-    /* My process*/
-    for (auto &BB : F) {
-
-      std::string bbname = BB.getName().str();
-      if (bbname.empty())
-        continue;
-
-      for (auto &I : BB) {
-
-        /* 通过BranchInst与SwitchInst对分支进行分析 */
-        if (BranchInst *BI = dyn_cast<BranchInst>(&I)) { // 若当前指令能转换为BranchInst, 证明它是一个IF-ELSE分支?
-          if (!BI->isConditional())                      // 若这个指令没有条件, 则跳过
-            continue;
-          if (loopHeaderUSet.find(BB.getName().str()) != loopHeaderUSet.end())
-            continue;
-
-          outs() << "IF-ELSE:" << bbname << "\n";
-
-          int n = BI->getNumSuccessors(); // 获取后继者数量, 并进行遍历
-          for (int i = 0; i < n; i++) {
-            outs() << BI->getSuccessor(i)->getName() << ",";
-          }
-          outs() << "\n\n";
-
-        } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) { // 若当前指令能转换为SwitchInst, 证明它是一个SWITCH-CASE分支?
-          outs() << "SWITCH-CASE:" << bbname << "\n";
-
-          int n = SI->getNumSuccessors();
-          for (int i = 0; i < n; i++) {
-            outs() << SI->getSuccessor(i)->getName() << ",";
-          }
-          outs() << "\n\n";
-        }
-      }
-    }
-  }
-
-  for (auto it = loopMap.begin(); it != loopMap.end(); it++) {
-    if (it->second.size() > 2)
-      outs() << it->first << " is a complex loop\n";
   }
 
   return false;
@@ -285,8 +287,8 @@ bool BranchPass::runOnModule(Module &M) {
 
 /* 注册Pass */
 static void registerPass3(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-  PM.add(new LoopPass());
-  PM.add(new BranchPass());
+  PM.add(new MyPass());
+  PM.add(new AFLGoPass());
 }
-static RegisterStandardPasses RegisterRnDuPass(PassManagerBuilder::EP_OptimizerLast, registerPass3);
-static RegisterStandardPasses RegisterRnDuPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerPass3);
+static RegisterStandardPasses RegisterMyPass(PassManagerBuilder::EP_OptimizerLast, registerPass3);
+static RegisterStandardPasses RegisterMyPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerPass3);
