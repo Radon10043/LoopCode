@@ -8,10 +8,18 @@ max_features = 400
 
 
 def test_case_type_1():
+    """
+    比特序列，即每一个元素是[0,0,1,1,1,1,...]
+    :return:
+    """
     return train_dataset_generator.gen_train_dataset_with_bits_array(max_feature_length=max_features)
 
 
 def test_case_type_2():
+    """
+    字节序列，即每一个元素是[\x00,\x00,\x01,\x01,\x01,\x01,...]
+    :return:
+    """
     return train_dataset_generator.gen_train_dataset_with_bytes_array(max_feature_length=max_features)
 
 
