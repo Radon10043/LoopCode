@@ -1,0 +1,9 @@
+.vscode/
+build/
+data/
+temp/
+
+*.ll
+*.out
+*.dot
+*.out.*
