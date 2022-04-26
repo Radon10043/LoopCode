@@ -1,6 +1,5 @@
 import keras.optimizers
 import numpy
-import tensorflow
 from keras.models import Sequential
 from keras.layers import Dense, Activation
 from sklearn.model_selection import train_test_split
