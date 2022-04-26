@@ -6,7 +6,7 @@ import pandas as pd
 
 import bytes_converter
 
-dataset_path = '/Users/yanghuiwen/PycharmProjects/tf_apple/testcase.csv'
+dataset_path = 'testcase.csv'
 
 
 def gen_train_dataset_with_bits_array(max_feature_length=100):
