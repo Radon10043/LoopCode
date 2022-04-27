@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-04-26 17:24:09
+ * @LastEditTime: 2022-04-27 17:40:43
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -39,6 +39,11 @@
 
 #include "llvm/Analysis/LoopInfo.h"
 using namespace llvm;
+
+
+/* 全局变量 */
+std::map<std::string, unsigned> loopMap;   // 记录循环基本块及其所处循环深度的map
+std::map<std::string, unsigned> branchMap; // 记录分支基本块及其所处分支深度的map
 
 
 namespace {
@@ -162,7 +167,7 @@ void MyPass::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 
-// TODO: 分支和基本块的深度都是相对于函数而言的, 所以都写在runOnFunction就行了
+// 分支和基本块的深度都是相对于函数而言的, 所以都写在runOnFunction就行了
 bool MyPass::runOnFunction(Function &F) {
 
   if (isBlacklisted(&F)) {
@@ -204,30 +209,57 @@ bool MyPass::runOnFunction(Function &F) {
 
     // 如果这个基本块是循环头, 查看循环头对应的true与false分支
     if (isLoopHeader) {
+
       for (auto &I : BB) {
+
         if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
+
           if (BI->isConditional()) {
+
             BasicBlock *BBT = BI->getSuccessor(0); // 根据观察, 似乎getSuccessor(0)是Branch中true分支的基本块, 1是false分支的基本块
             BasicBlock *BBF = BI->getSuccessor(1);
-            outs() << F.getName() << ": LOOP: " << bbname << ", T: " << getBasicBlockName(BBT) << ", F: " << getBasicBlockName(BBF) << ", loop depth: " << loopDepth << "\n";
+
+            loopMap[bbname] = loopDepth; // TODO: 记录循环条件的True分支基本块和其循环深度
           }
         }
       }
     }
 
-    // 如果这个基本块中的指令可以转换为分支指令, 输出其所在基本块的T,F分支基本块并判断深度 (深度没找到现成的方法, 目前用的栈)
     for (auto &I : BB) {
+
+    // 如果这个基本块中的指令可以转换为分支指令, 输出其所在基本块的T,F分支基本块并判断深度 (深度没找到现成的方法, 目前用的栈)
       if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
+
         if (!BI->isConditional())
           break;
+
         BasicBlock *BBT = BI->getSuccessor(0);
         BasicBlock *BBF = BI->getSuccessor(1);
-        outs() << F.getName() << ": Branch: " << bbname << ", T: " << getBasicBlockName(BBT) << ", F: " << getBasicBlockName(BBF) << " branch depth: " << stk.size() << "\n";
+
+        // F分支的基本块加入栈, 以计算分支深度
         stk.push(BBF);
+
+        // 分支的深度就是栈的大小
+        unsigned branchDepth = stk.size();
+
+        branchMap[bbname] = branchDepth;  // TODO: 分支这里, 应该将分支基本块(if所在块)加入map, 还是它的True分支块加入map?
+
+      } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) {
+
+        // 根据观察, 0一般是跳出switch-case后要经过的基本块或default基本块, 1至n-1一般是按照case顺序来的基本块
+        int n = SI->getNumSuccessors();
+
+        // 将default或跳出switch后的第一个基本块加入栈
+        stk.push(SI->getSuccessor(0));
+
+        // 分支的深度就是栈的大小
+        unsigned branchDepth = stk.size();
+
+        for (int i = 1; i < n; i++) { // TODO: i = 0 or i = 1?
+          branchMap[getBasicBlockName(SI->getSuccessor(i))] = branchDepth;
+        }
       }
     }
-
-    // TODO: SwitchInst
   }
   return false;
 }
