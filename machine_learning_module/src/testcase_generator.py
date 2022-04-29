@@ -8,7 +8,7 @@ import loguru
 import numpy.random
 import pandas as pd
 
-test_case_csv_path = 'testcase.csv'
+test_case_csv_path = '../testcase.csv'
 
 
 def gen_test_case_param(size: int = 10):

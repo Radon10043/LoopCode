@@ -1,8 +1,8 @@
 import numpy
 
-from machine_learning_module import train_dataset_generator
-from machine_learning_module.sklearn_test import train_sk_model
-from machine_learning_module.weight_diff_calculate import calculate_weight_diff_for_each_output
+from machine_learning_module.src import train_dataset_generator
+from machine_learning_module.src.sklearn_test import train_sk_model
+from machine_learning_module.src.weight_diff_calculate import calculate_weight_diff_for_each_output
 
 max_features = 400
 
