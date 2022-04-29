@@ -2,3 +2,4 @@
 .vscode
 machine_learning_module/testcase.csv
 *.out
+machine_learning_module/c_example/temp
