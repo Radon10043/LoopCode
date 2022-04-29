@@ -13,9 +13,9 @@ mkdir testcase
 cd testcase
 echo "0" >tc0
 
-export CC=$AFL_PATH/afl-gcc
+export CC=$AFL_PATH/afl-clang-fast
 
-export CXX=$AFL_PATH/afl-g++
+export CXX=$AFL_PATH/afl-clang-fast++
 
 cd $BASE_PATH
 $CC e.c -o a.out
