@@ -66,7 +66,8 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
-
+static int yagol_testcase_counter=0;  //for count testcase yagol create, used for testcase filename. mark:yagol
+static int fuzz_loop_round_counter=0; //for count fuzz main loop, used for testcase filename. mark:yagol
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
 #  include <sys/sysctl.h>
 #endif /* __APPLE__ || __FreeBSD__ || __OpenBSD__ */
@@ -3171,6 +3172,23 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
   u8  hnb;
   s32 fd;
   u8  keeping = 0, res;
+
+  /* mark:yagol:start */
+  if(yagol_testcase_counter <=10 && fuzz_loop_round_counter <=100){
+      u8 *ya_fn="";
+      s32 ya_fd;
+      ya_fn = alloc_printf("%s/ya/id:%d_%d", out_dir, fuzz_loop_round_counter, yagol_testcase_counter); // like: ya/id:1_1
+      ya_fd = open(ya_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+      if (ya_fd < 0) PFATAL("Unable to create '%s'", ya_fn);
+      ck_write(ya_fd, mem, len, ya_fn);
+      close(ya_fd);
+
+      ck_free(ya_fn);
+
+      yagol_testcase_counter++;
+  }
+
+  /* mark:yagol:end */
 
   if (fault == crash_mode) {
 
@@ -7187,6 +7205,13 @@ EXP_ST void setup_dirs_fds(void) {
 #endif /* !__sun */
 
   }
+  /* mark:yagol:start */
+
+  tmp = alloc_printf("%s/ya", out_dir);  //create ya dir, which save testcase ya need
+  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
+  ck_free(tmp);
+
+  /* mark:yagol:end */
 
   /* Queue directory for any starting & discovered paths. */
 
@@ -8108,6 +8133,8 @@ int main(int argc, char** argv) {
     if (!queue_cur) {
 
       queue_cycle++;
+      fuzz_loop_round_counter++;// mark:yagol
+      yagol_testcase_counter=0;// mark:yagol
       current_entry     = 0;
       cur_skipped_paths = 0;
       queue_cur         = queue;

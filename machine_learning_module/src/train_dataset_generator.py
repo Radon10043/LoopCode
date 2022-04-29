@@ -2,6 +2,8 @@
 模型训练数据生成器
 
 """
+import os
+
 import pandas as pd
 
 import bytes_converter
@@ -84,3 +86,26 @@ def gen_train_dataset_with_bytes_array(max_feature_length=100):
         y_data.append(y)
     print("longest_testcase_length:", longest_testcase_length)
     return x_data, y_data
+
+
+def read_afl_testcase(max_feature_length=100):
+    x_data = []
+    y_data = []
+    longest_testcase_length = 0
+    for root, dirs, files in os.walk("../c_example/temp/out/ya"):
+        for file_name in files:
+            test_case_path = os.path.join(root, file_name)
+            with open(test_case_path, "r", encoding="ISO-8859-15") as f:
+                t = f.read()
+                x = bytearray(t, "ISO-8859-15")
+                if len(x) > longest_testcase_length:
+                    longest_testcase_length = len(x)
+                if len(x) > max_feature_length:
+                    x = x[:max_feature_length]
+                else:
+                    x = x + (max_feature_length - len(x)) * b'\x00'
+                x_data.append(x)
+    print("longest_testcase_length:", longest_testcase_length)
+
+
+read_afl_testcase()

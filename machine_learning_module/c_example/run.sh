@@ -20,4 +20,4 @@ export CXX=$AFL_PATH/afl-g++
 cd $BASE_PATH
 $CC e.c -o a.out
 cd temp
-$AFL_PATH/afl-fuzz -i testcase -o out ../a.out
+$AFL_PATH/afl-fuzz -i testcase -o out ../a.out @@

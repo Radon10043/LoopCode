@@ -24,10 +24,8 @@ void loop(int x) {
 }
 
 int main(int argc, char **argv) {
-  int x = 0;
-
-  scanf("%d", &x);
-
+  int x = argc*10;
+  printf("%d\n",x);
   loop(x);
 
   return 0;
