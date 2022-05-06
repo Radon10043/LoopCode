@@ -11,13 +11,13 @@ mkdir temp
 cd temp
 mkdir testcase
 cd testcase
-echo "0" >tc0
+echo "1+1=" >tc0
 
 export CC=$AFL_PATH/afl-clang-fast
 
 export CXX=$AFL_PATH/afl-clang-fast++
 
 cd $BASE_PATH
-$CC e.c -o a.out
+$CXX e.c -o a.out
 cd temp
-$AFL_PATH/afl-fuzz -i testcase -o out ../a.out @@
+$AFL_PATH/afl-fuzz -t 5000 -i testcase -o out ../a.out
