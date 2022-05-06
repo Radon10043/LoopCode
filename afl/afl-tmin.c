@@ -178,7 +178,8 @@ static void setup_shm(void) {
 
   u8* shm_str;
 
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
+  /* 扩展共享内存, 扩展大小: 65536字节 */
+  shm_id = shmget(IPC_PRIVATE, MAP_SIZE + 65536, IPC_CREAT | IPC_EXCL | 0600);
 
   if (shm_id < 0) PFATAL("shmget() failed");
 
