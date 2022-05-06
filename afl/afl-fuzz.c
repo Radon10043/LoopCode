@@ -1383,7 +1383,8 @@ EXP_ST void setup_shm(void) {
   memset(virgin_tmout, 255, MAP_SIZE);
   memset(virgin_crash, 255, MAP_SIZE);
 
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
+  /* 扩展共享内存, 扩展大小: 65536字节 */
+  shm_id = shmget(IPC_PRIVATE, MAP_SIZE + 65536, IPC_CREAT | IPC_EXCL | 0600);
 
   if (shm_id < 0) PFATAL("shmget() failed");
 
@@ -2308,7 +2309,8 @@ static u8 run_target(char** argv, u32 timeout) {
      must prevent any earlier operations from venturing into that
      territory. */
 
-  memset(trace_bits, 0, MAP_SIZE);
+  /* 扩展共享内存, 扩展大小: 65536字节 */
+  memset(trace_bits, 0, MAP_SIZE + 65536);
   MEM_BARRIER();
 
   /* If we're running in "dumb" mode, we can't rely on the fork server
@@ -2922,6 +2924,27 @@ static void perform_dry_run(char** argv) {
 
     }
 
+    /* Radon: 保存初始种子测试用例的覆盖信息 */
+    u8* ocov_fn = alloc_printf("%s_cov.txt", q->fname);
+    s32 ocov_fd = open(ocov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+    FILE* ocov_f;
+
+    if (ocov_fd < 0) PFATAL("Unable to create '%s'", ocov_fn);
+
+    ck_free(ocov_fn);
+
+    ocov_f = fdopen(ocov_fd, "w");
+
+    if (!ocov_f) PFATAL("fdopen() failed");
+
+    for (u32 offset = 0; offset < 65536; offset += 8) {
+      u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
+      fprintf(ocov_f, "%llu\n", *is_cov);
+    }
+
+    fclose(ocov_f);
+    /* ***************************** */
+
     if (q->var_behavior) WARNF("Instrumentation output varies across runs.");
 
     q = q->next;
@@ -3174,20 +3197,41 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
   u8  keeping = 0, res;
 
   /* mark:yagol:start */
-  if(yagol_testcase_counter <=10 && fuzz_loop_round_counter <=100){
-      u8 *ya_fn="";
-      s32 ya_fd;
-      ya_fn = alloc_printf("%s/ya/id:%d_%d", out_dir, fuzz_loop_round_counter, yagol_testcase_counter); // like: ya/id:1_1
-      ya_fd = open(ya_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-      if (ya_fd < 0) PFATAL("Unable to create '%s'", ya_fn);
-      ck_write(ya_fd, mem, len, ya_fn);
-      close(ya_fd);
+  if(yagol_testcase_counter <= 10 && fuzz_loop_round_counter <= 100){
+    u8 *ya_fn = "";
+    s32 ya_fd;
+    ya_fn = alloc_printf("%s/ya/id:%d_%d", out_dir, fuzz_loop_round_counter, yagol_testcase_counter); // like: ya/id:1_1
+    ya_fd = open(ya_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+    if (ya_fd < 0) PFATAL("Unable to create '%s'", ya_fn);
+    ck_write(ya_fd, mem, len, ya_fn);
+    close(ya_fd);
 
-      ck_free(ya_fn);
+    ck_free(ya_fn);
 
-      yagol_testcase_counter++;
+    /* Radon: 保存每个测试用例的覆盖信息 */
+    u8* cov_fn = alloc_printf("%s/ya/id:%d_%d_cov", out_dir, fuzz_loop_round_counter, yagol_testcase_counter);  // like: ya/id:1_1_cov
+    s32 cov_fd = open(cov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+    FILE* cov_f;
+
+    if (cov_fd < 0) PFATAL("Unable to create '%s'", cov_fn);
+
+    ck_free(cov_fn);
+
+    cov_f = fdopen(cov_fd, "w");
+
+    if (!cov_f) PFATAL("fdopen() failed");
+
+    for (u32 offset = 0; offset < 65536; offset += 8) {
+      u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
+      fprintf(cov_f, "%llu\n", *is_cov);
+    }
+
+    fclose(cov_f);
+    /* ***************************** */
+
+    yagol_testcase_counter++;
+
   }
-
   /* mark:yagol:end */
 
   if (fault == crash_mode) {
@@ -3232,6 +3276,29 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     if (fd < 0) PFATAL("Unable to create '%s'", fn);
     ck_write(fd, mem, len, fn);
     close(fd);
+
+#if 1
+    /* Radon: 保存到队列的同时保存测试用例的覆盖信息 */
+    u8* qcov_fn = alloc_printf("%s/queue/id:%06u,%s_cov.txt", out_dir, queued_paths - 1, describe_op(hnb));    // add_to_queue的时候 + 1了, 所以这里 - 1
+    s32 qcov_fd = open(qcov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+    FILE* qcov_f;
+
+    if (qcov_fd < 0) PFATAL("Unable to create '%s'", qcov_fn);
+
+    ck_free(qcov_fn);
+
+    qcov_f = fdopen(qcov_fd, "w");
+
+    if (!qcov_f) PFATAL("fdopen() failed");
+
+    for (u32 offset = 0; offset < 65536; offset += 8) {
+      u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
+      fprintf(qcov_f, "%llu\n", *is_cov);
+    }
+
+    fclose(qcov_f);
+    /* ***************************** */
+#endif
 
     keeping = 1;
 
@@ -3362,6 +3429,27 @@ keep_as_crash:
   close(fd);
 
   ck_free(fn);
+
+  /* Radon: 保存触发crash的测试用例的覆盖信息 */
+  u8* ccov_fn = alloc_printf("%s/crashes/id:%06llu,%llu,sig:%02u,%s_cov", out_dir, unique_crashes, get_cur_time() - start_time, kill_signal, describe_op(0));
+  s32 ccov_fd = open(ccov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  FILE* ccov_f;
+
+  if (ccov_fd < 0) PFATAL("Unable to create '%s'", ccov_fn);
+
+  ck_free(ccov_fn);
+
+  ccov_f = fdopen(ccov_fd, "w");
+
+  if (!ccov_f) PFATAL("fdopen() failed");
+
+  for (u32 offset = 0; offset < 65536; offset += 8) {
+    u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
+    fprintf(ccov_f, "%llu\n", *is_cov);
+  }
+
+  fclose(ccov_f);
+  /* ***************************** */
 
   return keeping;
 
@@ -3802,6 +3890,12 @@ static void maybe_delete_out_dir(void) {
     ck_free(fn);
 
   }
+
+  /* Radon: Clean ya directory */
+
+  fn = alloc_printf("%s/ya", out_dir);
+  if (delete_files(fn, CASE_PREFIX)) goto dir_cleanup_failed;
+  ck_free(fn);
 
   /* Next, we need to clean up <out_dir>/queue/.state/ subdirectories: */
 
@@ -5158,6 +5252,8 @@ static u8 fuzz_one(char** argv) {
   }
 
   memcpy(out_buf, in_buf, len);
+
+
 
   /*********************
    * PERFORMANCE SCORE *
@@ -8134,7 +8230,7 @@ int main(int argc, char** argv) {
 
       queue_cycle++;
       fuzz_loop_round_counter++;// mark:yagol
-      yagol_testcase_counter=0;// mark:yagol
+      yagol_testcase_counter = 0;// mark:yagol
       current_entry     = 0;
       cur_skipped_paths = 0;
       queue_cur         = queue;

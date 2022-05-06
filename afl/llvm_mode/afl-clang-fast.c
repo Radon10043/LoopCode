@@ -144,6 +144,13 @@ static void edit_params(u32 argc, char** argv) {
   while (--argc) {
     u8* cur = *(++argv);
 
+    /* 自己加的参数, 发送到pass进行处理
+     * -outdir: 如果带了这个参数, 证明要进行预处理, 输出所有基本块的名字
+     * -bbfile: 如果带了这个参数, 证明要进行程序插桩, 根据bbfile的内容插入指令
+     */
+    if (!strncmp(cur, "-outdir", 7) || !strncmp(cur, "-bbfile", 7))
+      cc_params[cc_par_cnt++] = "-mllvm";
+
     if (!strcmp(cur, "-m32")) bit_mode = 32;
     if (!strcmp(cur, "armv7a-linux-androideabi")) bit_mode = 32;
     if (!strcmp(cur, "-m64")) bit_mode = 64;
