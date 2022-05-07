@@ -3197,7 +3197,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
   u8  keeping = 0, res;
 
   /* mark:yagol:start */
-  if(yagol_testcase_counter <= 10 && fuzz_loop_round_counter <= 100){
+  if(yagol_testcase_counter <= 100 && fuzz_loop_round_counter <= 50){
     u8 *ya_fn = "";
     s32 ya_fd;
     ya_fn = alloc_printf("%s/ya/id:%d_%d", out_dir, fuzz_loop_round_counter, yagol_testcase_counter); // like: ya/id:1_1

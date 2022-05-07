@@ -3,6 +3,7 @@
 
 """
 import os
+from collections import Counter
 
 import pandas as pd
 
@@ -89,23 +90,40 @@ def gen_train_dataset_with_bytes_array(max_feature_length=100):
 
 
 def read_afl_testcase(max_feature_length=100):
+    testcase_dirs = ["../c_example/temp/out/ya", "../c_example/temp/out/crashes", "../c_example/temp/out/queue",
+                     "../c_example/temp/out/hangs"]
     x_data = []
     y_data = []
+    bb_file_txt_path = "../c_example/temp/BBFile.txt"
+    with open(bb_file_txt_path, 'r') as f:
+        bb_size = len(f.readlines())
     longest_testcase_length = 0
-    for root, dirs, files in os.walk("../c_example/temp/out/ya"):
-        for file_name in files:
-            test_case_path = os.path.join(root, file_name)
-            with open(test_case_path, "r", encoding="ISO-8859-15") as f:
-                t = f.read()
-                x = bytearray(t, "ISO-8859-15")
-                if len(x) > longest_testcase_length:
-                    longest_testcase_length = len(x)
-                if len(x) > max_feature_length:
-                    x = x[:max_feature_length]
-                else:
-                    x = x + (max_feature_length - len(x)) * b'\x00'
-                x_data.append(x)
+    for testcase_dir in testcase_dirs:
+        for root, dirs, files in os.walk(testcase_dir):
+            for file_name in files:
+                if file_name.endswith("_cov.txt"):
+                    coverage_path = os.path.join(root, file_name)
+                    testcase_bin_path = os.path.join(root, file_name.replace("_cov.txt", ""))
+                    if not os.path.exists(testcase_bin_path):
+                        print("ERROR: NO TESTCASE BIN FILE, BUT HAVE COVERAGE INFO", testcase_bin_path)  # 没有对应的测试用例
+                    else:
+                        with open(testcase_bin_path, "r", encoding="ISO-8859-15") as f:
+                            t = f.read()
+                            x = bytearray(t, "ISO-8859-15")
+                            if len(x) > longest_testcase_length:
+                                longest_testcase_length = len(x)
+                            if len(x) > max_feature_length:
+                                x = x[:max_feature_length]
+                            else:
+                                x = x + (max_feature_length - len(x)) * b'\x00'
+                            x_data.append(x)
+                        with open(coverage_path, "r") as f:
+                            temp = [int(str(s).strip()) for s in f.readlines()]
+                            if len(temp) < bb_size:
+                                temp = temp + [0] * (bb_size - len(temp))
+                            else:
+                                temp = temp[:bb_size]
+                            y_data.append(temp)
     print("longest_testcase_length:", longest_testcase_length)
 
-
-read_afl_testcase()
+    return x_data, y_data
