@@ -3206,10 +3206,8 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     ck_write(ya_fd, mem, len, ya_fn);
     close(ya_fd);
 
-    ck_free(ya_fn);
-
     /* Radon: 保存每个测试用例的覆盖信息 */
-    u8* cov_fn = alloc_printf("%s/ya/id:%d_%d_cov.txt", out_dir, fuzz_loop_round_counter, yagol_testcase_counter);  // like: ya/id:1_1_cov.txt
+    u8* cov_fn = alloc_printf("%s_cov.txt", ya_fn);  // like: ya/id:1_1_cov.txt
     s32 cov_fd = open(cov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
     FILE* cov_f;
 
@@ -3228,6 +3226,8 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     fclose(cov_f);
     /* ***************************** */
+
+    ck_free(ya_fn);
 
     yagol_testcase_counter++;
 
@@ -3279,7 +3279,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
 #if 1
     /* Radon: 保存到队列的同时保存测试用例的覆盖信息 */
-    u8* qcov_fn = alloc_printf("%s/queue/id:%06u,%s_cov.txt", out_dir, queued_paths - 1, describe_op(hnb));    // add_to_queue的时候 + 1了, 所以这里 - 1
+    u8* qcov_fn = alloc_printf("%s_cov.txt", fn);
     s32 qcov_fd = open(qcov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
     FILE* qcov_f;
 
@@ -3428,28 +3428,30 @@ keep_as_crash:
   ck_write(fd, mem, len, fn);
   close(fd);
 
-  ck_free(fn);
+# if 1
+  /* Radon: 保存触发crash的或超时的测试用例的覆盖信息 */
+  u8* icov_fn = alloc_printf("%s_cov.txt", fn);   // icov_fn: interesting cover file name
+  s32 icov_fd = open(icov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  FILE* icov_f;
 
-  /* Radon: 保存触发crash的测试用例的覆盖信息 */
-  u8* ccov_fn = alloc_printf("%s/crashes/id:%06llu,%llu,sig:%02u,%s_cov.txt", out_dir, unique_crashes, get_cur_time() - start_time, kill_signal, describe_op(0));
-  s32 ccov_fd = open(ccov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-  FILE* ccov_f;
+  if (icov_fd < 0) PFATAL("Unable to create '%s'", icov_fn);
 
-  if (ccov_fd < 0) PFATAL("Unable to create '%s'", ccov_fn);
+  icov_f = fdopen(icov_fd, "w");
 
-  ck_free(ccov_fn);
-
-  ccov_f = fdopen(ccov_fd, "w");
-
-  if (!ccov_f) PFATAL("fdopen() failed");
+  if (!icov_f) PFATAL("fdopen() failed");
 
   for (u32 offset = 0; offset < 65536; offset += 8) {
     u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
-    fprintf(ccov_f, "%llu\n", *is_cov);
+    fprintf(icov_f, "%llu\n", *is_cov);
   }
 
-  fclose(ccov_f);
+  ck_free(icov_fn);
+
+  fclose(icov_f);
   /* ***************************** */
+#endif
+
+  ck_free(fn);
 
   return keeping;
 
