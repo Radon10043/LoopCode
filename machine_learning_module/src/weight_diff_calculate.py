@@ -2,8 +2,6 @@ import math
 import os
 import shutil
 
-import numpy as np
-
 
 def euclidean(point1, point2):
     """
@@ -50,6 +48,7 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
                     sum_of_weight_diff += euclidean(points[m], points[n])
             summary.append((sum_of_weight_diff, j))
         summary.sort(key=lambda x: x[0], reverse=True)  # 降序排列，最前面的是最具有影响力的
+        print(summary[:top_k])
         with open(f"../out/{str(i)}.txt", "w") as f:
             for k in range(top_k):
                 f.write(str(summary[k][1]) + "\n")
