@@ -5,6 +5,7 @@ Q. 多层感知机==全连接神经网络?
 A. https://datascience.stackexchange.com/questions/91123/is-a-multi-layer-perceptron-exactly-the-same-as-a-simple-fully-connected-neural
 
 """
+from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 
@@ -32,7 +33,8 @@ def train_sk_model(hidden_layer_sizes, x_data, y_data, max_iter=200, is_test: bo
         x_train, x_test, y_train, y_test = train_test_split(x_data, y_data)
         print("training...")
         clf.fit(x_train, y_train)
-        print(f"model score is: {clf.score(x_test, y_test)}")
+        y_pred = clf.predict(x_test)
+        print(f"model f1 score is: {f1_score(y_test, y_pred,average='samples')}")
     else:
         print("training...")
         clf.fit(x_data, y_data)

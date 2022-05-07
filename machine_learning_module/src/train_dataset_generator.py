@@ -90,7 +90,8 @@ def gen_train_dataset_with_bytes_array(max_feature_length=100):
 
 
 def read_afl_testcase(max_feature_length=100):
-    testcase_dirs = ["../c_example/temp/out/ya", "../c_example/temp/out/crashes", "../c_example/temp/out/queue"]
+    testcase_dirs = ["../c_example/temp/out/ya", "../c_example/temp/out/crashes", "../c_example/temp/out/queue",
+                     "../c_example/temp/out/hangs"]
     x_data = []
     y_data = []
     bb_file_txt_path = "../c_example/temp/BBFile.txt"
