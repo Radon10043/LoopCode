@@ -3197,7 +3197,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
   u8  keeping = 0, res;
 
   /* mark:yagol:start */
-  if(yagol_testcase_counter <= 10 && fuzz_loop_round_counter <= 100){
+  if(yagol_testcase_counter <= 50 && fuzz_loop_round_counter <= 50){
     u8 *ya_fn = "";
     s32 ya_fd;
     ya_fn = alloc_printf("%s/ya/id:%d_%d", out_dir, fuzz_loop_round_counter, yagol_testcase_counter); // like: ya/id:1_1
@@ -3209,7 +3209,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     ck_free(ya_fn);
 
     /* Radon: 保存每个测试用例的覆盖信息 */
-    u8* cov_fn = alloc_printf("%s/ya/id:%d_%d_cov", out_dir, fuzz_loop_round_counter, yagol_testcase_counter);  // like: ya/id:1_1_cov
+    u8* cov_fn = alloc_printf("%s/ya/id:%d_%d_cov.txt", out_dir, fuzz_loop_round_counter, yagol_testcase_counter);  // like: ya/id:1_1_cov.txt
     s32 cov_fd = open(cov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
     FILE* cov_f;
 
@@ -3431,7 +3431,7 @@ keep_as_crash:
   ck_free(fn);
 
   /* Radon: 保存触发crash的测试用例的覆盖信息 */
-  u8* ccov_fn = alloc_printf("%s/crashes/id:%06llu,%llu,sig:%02u,%s_cov", out_dir, unique_crashes, get_cur_time() - start_time, kill_signal, describe_op(0));
+  u8* ccov_fn = alloc_printf("%s/crashes/id:%06llu,%llu,sig:%02u,%s_cov.txt", out_dir, unique_crashes, get_cur_time() - start_time, kill_signal, describe_op(0));
   s32 ccov_fd = open(ccov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
   FILE* ccov_f;
 
