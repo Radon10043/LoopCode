@@ -66,8 +66,13 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
+#include <sys/socket.h> // for socket with py
+#include <netinet/in.h>// for socket with py
+#include <arpa/inet.h>// for socket with py
 static int yagol_testcase_counter=0;  //for count testcase yagol create, used for testcase filename. mark:yagol
 static int fuzz_loop_round_counter=0; //for count fuzz main loop, used for testcase filename. mark:yagol
+#define DEST_PORT 12012   // port. mark:yagol
+#define DSET_IP_ADDRESS  "127.0.0.1 " // ip address. mark:yagol
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
 #  include <sys/sysctl.h>
 #endif /* __APPLE__ || __FreeBSD__ || __OpenBSD__ */
@@ -339,6 +344,62 @@ enum {
   /* 05 */ FAULT_NOBITS
 };
 
+/* yagol py module function */
+
+int start_py_module(){
+	int sock_fd;
+    sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if(sock_fd < 0)
+    {
+        perror("socket");
+        exit(1);
+    }
+
+  struct sockaddr_in addr_serv;
+  int len;
+  memset(&addr_serv, 0, sizeof(addr_serv));
+  addr_serv.sin_family = AF_INET;
+  addr_serv.sin_addr.s_addr = inet_addr(DSET_IP_ADDRESS);
+  addr_serv.sin_port = htons(DEST_PORT);
+  len = sizeof(addr_serv);
+
+
+  int send_num;
+  int recv_num;
+  char send_buf[20] = "start py";
+  char recv_buf[20];
+
+  printf("client send: %s\n", send_buf);
+
+  send_num = sendto(sock_fd, send_buf, strlen(send_buf), 0, (struct sockaddr *)&addr_serv, len);
+
+  if(send_num < 0)
+  {
+      perror("sendto error:");
+      exit(1);
+  }
+
+  recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 0, (struct sockaddr *)&addr_serv, (socklen_t *)&len);
+
+  if(recv_num < 0)
+  {
+    perror("recvfrom error:");
+    exit(1);
+  }
+
+  recv_buf[recv_num] = '\0';
+
+  close(sock_fd);
+  if (strcmp(recv_buf, "py end") == 0)
+  {
+    printf("py end success!\n");
+    return 0;
+  }else{
+    return -1;
+  }
+}
+
+/* yagol py module function end */
 
 /* Get unix time in milliseconds */
 
@@ -8265,6 +8326,7 @@ int main(int argc, char** argv) {
         sync_fuzzers(use_argv);
 
     }
+    //yagol py module
 
     skipped_fuzz = fuzz_one(use_argv);
 

@@ -3,6 +3,19 @@ import os
 import shutil
 
 
+def fusion(summaries):
+    indexes_and_probabilities = dict()
+    for summary in summaries:
+        for index, probability in summary:
+            if index not in indexes_and_probabilities:
+                indexes_and_probabilities[index] = probability
+            else:
+                indexes_and_probabilities[index] += probability
+    with open("../out/fusion.csv", "w") as f:
+        for index, probability in indexes_and_probabilities.items():
+            f.write(str(index) + "," + str(probability) + "\n")
+
+
 def euclidean(point1, point2):
     """
     计算两点之间的欧式距离
@@ -18,7 +31,9 @@ def euclidean(point1, point2):
     return math.dist(point1, point2)
 
 
-def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_layer_sizes, clf, top_k=5):
+def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_layer_sizes, clf, top_k=None,
+                                          printer=False,
+                                          label_list_wanted=None):
     """
     计算权重差异距离累加和
 
@@ -27,13 +42,20 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     :param hidden_layer_sizes:
     :param clf: 模型，必须提供权重向量
     :param top_k:
+    :param printer:
+    :param label_list_wanted:
     :return:
     """
     if os.path.isdir("../out"):
         shutil.rmtree("../out")
     os.mkdir("../out")
     print("hidden_layer_sizes:", hidden_layer_sizes)
+    summaries = []
+    if top_k is None:
+        top_k = label_sizes
     for i in range(label_sizes):
+        if i not in label_list_wanted:
+            continue
         summary = []  # 该输出层对应的每个输入层的权重差异距离累加和
         for j in range(feature_sizes):
             if len(hidden_layer_sizes) == 2:
@@ -43,15 +65,19 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
             else:
                 raise Exception("不支持的隐藏层数量")
             sum_of_weight_diff = 0
-            for m in range(len(points)):
+            for m in range(len(points) - 1):
+                # sum_of_weight_diff += euclidean(points[m], points[m + 1])
                 for n in range(m + 1, len(points)):
                     sum_of_weight_diff += euclidean(points[m], points[n])
-            summary.append((sum_of_weight_diff, j))
-        summary.sort(key=lambda x: x[0], reverse=True)  # 降序排列，最前面的是最具有影响力的
-        print(summary[:top_k])
-        with open(f"../out/{str(i)}.txt", "w") as f:
+            summary.append((j, sum_of_weight_diff))
+        summary.sort(key=lambda x: x[1], reverse=True)  # 降序排列，最前面的是最具有影响力的
+        if printer:
+            print(summary[:top_k])
+        summaries.append(summary[:top_k])
+        with open(f"../out/{str(i)}.csv", "w") as f:
             for k in range(top_k):
-                f.write(str(summary[k][1]) + "\n")
+                f.write(str(summary[k][0]) + "," + str(summary[k][1]) + "\n")
+    fusion(summaries)
 
 
 def gen_point_3(clf, hidden_layer_sizes, i, j):
