@@ -8373,8 +8373,8 @@ int main(int argc, char** argv) {
 
     }
 
-#if 0
-    //yagol py module
+#if 1
+    // yagol py module
     if (total_execs >=100 && last_py_train_testcase != total_execs) {
       last_py_train_testcase = total_execs;
         if (-1 == start_py_module()) {
