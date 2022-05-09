@@ -70,9 +70,7 @@
 #include <sys/socket.h> // for socket with py
 #include <netinet/in.h>// for socket with py
 #include <arpa/inet.h>// for socket with py
-static int yagol_testcase_counter=0;  //for count testcase yagol create, used for testcase filename. mark:yagol
-static int fuzz_loop_round_counter=0; //for count fuzz main loop, used for testcase filename. mark:yagol
-static u64 last_py_train_testcase=0; //mark:yagol
+
 #define DEST_PORT 12012   // port. mark:yagol
 #define DSET_IP_ADDRESS  "127.0.0.1 " // ip address. mark:yagol
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
@@ -301,7 +299,7 @@ static u32 stop_time = 60;            /* Radon: Fuzzing time */
 
 static int yagol_testcase_counter = 0;  /* Yagol: for count testcase yagol create, used for testcase filename. */
 static int fuzz_loop_round_counter = 0; /* Yagol: for count fuzz main loop, used for testcase filename. */
-
+static u64 last_py_train_testcase=0; /* Yagol: for count last py train testcase */
 
 /* Interesting values, as per config.h */
 
