@@ -66,8 +66,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
-static int yagol_testcase_counter=0;  //for count testcase yagol create, used for testcase filename. mark:yagol
-static int fuzz_loop_round_counter=0; //for count fuzz main loop, used for testcase filename. mark:yagol
+
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
 #  include <sys/sysctl.h>
 #endif /* __APPLE__ || __FreeBSD__ || __OpenBSD__ */
@@ -290,7 +289,11 @@ static u32 a_extras_cnt;              /* Total number of tokens available */
 
 static u8* (*post_handler)(u8* buf, u32* len);
 
-static u32 stop_time = 60;            /* Fuzzing time */
+static u32 stop_time = 60;            /* Radon: Fuzzing time */
+
+static int yagol_testcase_counter = 0;  /* Yagol: for count testcase yagol create, used for testcase filename. */
+static int fuzz_loop_round_counter = 0; /* Yagol: for count fuzz main loop, used for testcase filename. */
+
 
 /* Interesting values, as per config.h */
 
@@ -3428,7 +3431,7 @@ keep_as_crash:
   ck_write(fd, mem, len, fn);
   close(fd);
 
-# if 1
+#if 1
   /* Radon: 保存触发crash的或超时的测试用例的覆盖信息 */
   u8* icov_fn = alloc_printf("%s_cov.txt", fn);   // icov_fn: interesting cover file name
   s32 icov_fd = open(icov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -5287,6 +5290,44 @@ static u8 fuzz_one(char** argv) {
     u32 _bf = (_b); \
     _arf[(_bf) >> 3] ^= (128 >> ((_bf) & 7)); \
   } while (0)
+
+  /* Radon: myflip, 只翻转第favored_byte个字节的内容 */
+  /* TODO: 现在只是翻转某一个字节并保存了下来, 后续需要搞清楚要怎么变异 */
+
+#if 1
+  s32 favored_byte = 1;   // 翻转第favored_byte + 1个字节
+
+  stage_short = "myflip";
+  stage_max   = (favored_byte << 3) + 8;  // 只翻转指定字节, 即第favored_byte << 3开始的8位
+  stage_name  = "myflip 2nd";
+
+  for (stage_cur = favored_byte << 3; stage_cur < stage_max; stage_cur++) {
+
+    /* stage_cur_byte表示翻转了哪一个字节 */
+
+    stage_cur_byte = favored_byte;
+
+    /* 翻转out_buf的第stage_cur位 */
+
+    FLIP_BIT(out_buf, stage_cur);
+
+    /* 测试用例存到ya/myflip[x]中, [x]表示与种子相比, 翻转了哪一位 */
+
+    u8* mffn = alloc_printf("%s/ya/myflip%d", out_dir, stage_cur);
+    s32 mffd = open(mffn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+
+    ck_write(mffd, out_buf, len, mffn);
+
+    if (fd < 0) PFATAL("Unable to create '%s'", mffn);
+
+    close(mffd);
+
+    /* 把stage_cur位再翻转回去 */
+
+    FLIP_BIT(out_buf, stage_cur);
+
+  }
+#endif
 
   /* Single walking bit. */
 
