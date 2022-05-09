@@ -295,11 +295,12 @@ static u32 a_extras_cnt;              /* Total number of tokens available */
 
 static u8* (*post_handler)(u8* buf, u32* len);
 
-static u32 stop_time = 60;            /* Radon: Fuzzing time */
+static u32 stop_time  = 60;           /* Radon: Fuzzing time */
+static u8 save_myflip = 1;            /* Radon: save my flip file? */
 
-static int yagol_testcase_counter = 0;  /* Yagol: for count testcase yagol create, used for testcase filename. */
-static int fuzz_loop_round_counter = 0; /* Yagol: for count fuzz main loop, used for testcase filename. */
-static u64 last_py_train_testcase=0; /* Yagol: for count last py train testcase */
+static int yagol_testcase_counter = 0;    /* Yagol: for count testcase yagol create, used for testcase filename. */
+static int fuzz_loop_round_counter = 0;   /* Yagol: for count fuzz main loop, used for testcase filename. */
+static u64 last_py_train_testcase = 0;    /* Yagol: for count last py train testcase */
 
 /* Interesting values, as per config.h */
 
@@ -353,7 +354,7 @@ enum {
 int start_py_module(){
 	int sock_fd;
     sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if(sock_fd < 0)
+    if (sock_fd < 0)
     {
         perror("socket");
         exit(1);
@@ -367,7 +368,6 @@ int start_py_module(){
   addr_serv.sin_port = htons(DEST_PORT);
   len = sizeof(addr_serv);
 
-
   int send_num;
   int recv_num;
   char send_buf[20] = "start py";
@@ -377,7 +377,7 @@ int start_py_module(){
 
   send_num = sendto(sock_fd, send_buf, strlen(send_buf), 0, (struct sockaddr *)&addr_serv, len);
 
-  if(send_num < 0)
+  if (send_num < 0)
   {
       perror("sendto error:");
       exit(1);
@@ -385,7 +385,7 @@ int start_py_module(){
 
   recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 0, (struct sockaddr *)&addr_serv, (socklen_t *)&len);
 
-  if(recv_num < 0)
+  if (recv_num < 0)
   {
     perror("recvfrom error:");
     exit(1);
@@ -3262,7 +3262,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
   u8  keeping = 0, res;
 
   /* mark:yagol:start */
-  if(yagol_testcase_counter <= 100 && fuzz_loop_round_counter <= 50){
+  if (yagol_testcase_counter <= 100 && fuzz_loop_round_counter <= 50){
     u8 *ya_fn = "";
     s32 ya_fd;
     ya_fn = alloc_printf("%s/ya/id:%d_%d", out_dir, fuzz_loop_round_counter, yagol_testcase_counter); // like: ya/id:1_1
@@ -5363,7 +5363,11 @@ static u8 fuzz_one(char** argv) {
   stage_max   = (favored_byte << 3) + 8;  // 只翻转指定字节, 即第favored_byte << 3开始的8位
   stage_name  = "myflip 2nd";
 
-  for (stage_cur = favored_byte << 3; stage_cur < stage_max; stage_cur++) {
+  /* 只保存第一个种子翻转第二个字节的结果 */
+
+  save_myflip = 0;
+
+  for (stage_cur = favored_byte << 3; stage_cur < stage_max && save_myflip; stage_cur++) {
 
     /* stage_cur_byte表示翻转了哪一个字节 */
 
@@ -8368,13 +8372,17 @@ int main(int argc, char** argv) {
         sync_fuzzers(use_argv);
 
     }
+
+#if 0
     //yagol py module
-    if(total_execs >=100 && last_py_train_testcase!=total_execs){
+    if (total_execs >=100 && last_py_train_testcase != total_execs) {
       last_py_train_testcase = total_execs;
-        if(-1==start_py_module()){
+        if (-1 == start_py_module()) {
             FATAL("start_py_module failed");
         }
     }
+#endif
+
     skipped_fuzz = fuzz_one(use_argv);
 
     if (!stop_soon && sync_id && !skipped_fuzz) {
