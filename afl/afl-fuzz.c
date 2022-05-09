@@ -71,6 +71,7 @@
 #include <arpa/inet.h>// for socket with py
 static int yagol_testcase_counter=0;  //for count testcase yagol create, used for testcase filename. mark:yagol
 static int fuzz_loop_round_counter=0; //for count fuzz main loop, used for testcase filename. mark:yagol
+static u64 last_py_train_testcase=0; //mark:yagol
 #define DEST_PORT 12012   // port. mark:yagol
 #define DSET_IP_ADDRESS  "127.0.0.1 " // ip address. mark:yagol
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
@@ -8327,7 +8328,12 @@ int main(int argc, char** argv) {
 
     }
     //yagol py module
-
+    if(total_execs >=100 && last_py_train_testcase!=total_execs){
+      last_py_train_testcase = total_execs;
+        if(-1==start_py_module()){
+            FATAL("start_py_module failed");
+        }
+    }
     skipped_fuzz = fuzz_one(use_argv);
 
     if (!stop_soon && sync_id && !skipped_fuzz) {
