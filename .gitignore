@@ -5,3 +5,4 @@ machine_learning_module/testcase.csv
 machine_learning_module/c_example/temp
 machine_learning_module/c_example/*.out
 machine_learning_module/out
+machine_learning_module/src/socket_demo/*.out
