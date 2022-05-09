@@ -296,7 +296,8 @@ static u32 a_extras_cnt;              /* Total number of tokens available */
 static u8* (*post_handler)(u8* buf, u32* len);
 
 static u32 stop_time  = 60;           /* Radon: Fuzzing time */
-static u8 save_myflip = 1;            /* Radon: save my flip file? */
+static u8 save_myflip = 1;            /* Radon: Save my flip file? */
+static u8 enable_py   = 0;            /* Radon: Enable py module? */
 
 static int yagol_testcase_counter = 0;    /* Yagol: for count testcase yagol create, used for testcase filename. */
 static int fuzz_loop_round_counter = 0;   /* Yagol: for count fuzz main loop, used for testcase filename. */
@@ -8030,7 +8031,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:p")) > 0)
 
     switch (opt) {
 
@@ -8221,6 +8222,12 @@ int main(int argc, char** argv) {
 
         break;
 
+      case 'p': /* Enable py module */
+
+        if (enable_py) FATAL("Multiple -p options not supported");
+        enable_py = 1;
+        break;
+
       default:
 
         usage(argv[0]);
@@ -8375,11 +8382,15 @@ int main(int argc, char** argv) {
 
 #if 1
     // yagol py module
-    if (total_execs >=100 && last_py_train_testcase != total_execs) {
-      last_py_train_testcase = total_execs;
-        if (-1 == start_py_module()) {
-            FATAL("start_py_module failed");
-        }
+    if (enable_py) {
+
+      if (total_execs >=100 && last_py_train_testcase != total_execs) {
+        last_py_train_testcase = total_execs;
+          if (-1 == start_py_module()) {
+              FATAL("start_py_module failed");
+          }
+      }
+
     }
 #endif
 
