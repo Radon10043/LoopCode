@@ -68,13 +68,13 @@
 #include <sys/file.h>
 
 #include <sys/socket.h> // for socket with py
-#include <netinet/in.h>// for socket with py
-#include <arpa/inet.h>// for socket with py
+#include <netinet/in.h> // for socket with py
+#include <arpa/inet.h>  // for socket with py
 
-#define DEST_PORT 12012   // port. mark:yagol
-#define DSET_IP_ADDRESS  "127.0.0.1 " // ip address. mark:yagol
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
-#  include <sys/sysctl.h>
+#define DEST_PORT 12012              // port. mark:yagol
+#define DSET_IP_ADDRESS "127.0.0.1 " // ip address. mark:yagol
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#include <sys/sysctl.h>
 #endif /* __APPLE__ || __FreeBSD__ || __OpenBSD__ */
 
 /* For systems that have sched_setaffinity; right now just Linux, but one
@@ -299,10 +299,12 @@ static u32 stop_time  = 60;           /* Radon: Fuzzing time */
 static u8 save_myflip = 1;            /* Radon: Save my flip file? */
 static u8 enable_py   = 0;            /* Radon: Enable py module? */
 
-static int yagol_testcase_counter = 0;    /* Yagol: for count testcase yagol create, used for testcase filename. */
-static int fuzz_loop_round_counter = 0;   /* Yagol: for count fuzz main loop, used for testcase filename. */
-static u64 last_py_train_testcase = 0;    /* Yagol: for count last py train testcase */
-
+static int yagol_testcase_counter = 0;  /* Yagol: for count testcase yagol create, used for testcase filename. */
+static int fuzz_loop_round_counter = 0; /* Yagol: for count fuzz main loop, used for testcase filename. */
+static u64 last_py_train_testcase = 0;  /* Yagol: for count last py train testcase */
+static float prob_mapper[100] = {0};    /* Yagol: for mutate probability mapper */
+static float sum_prob = 0;              /* Yagol: for mutate probability sum */
+static u8 enable_base_prob = 0;         /* Yagol: can enable mutate base prob? */
 /* Interesting values, as per config.h */
 
 static s8  interesting_8[]  = { INTERESTING_8 };
@@ -5500,24 +5502,71 @@ static u8 fuzz_one(char** argv) {
 
   orig_hit_cnt = new_hit_cnt;
 
-  for (stage_cur = 0; stage_cur < stage_max; stage_cur++) {
+  for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
+  {
 
     stage_cur_byte = stage_cur >> 3;
 
     FLIP_BIT(out_buf, stage_cur);
     FLIP_BIT(out_buf, stage_cur + 1);
 
-    if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
+    if (common_fuzz_stuff(argv, out_buf, len))
+      goto abandon_entry;
 
     FLIP_BIT(out_buf, stage_cur);
     FLIP_BIT(out_buf, stage_cur + 1);
-
   }
 
   new_hit_cnt = queued_paths + unique_crashes;
 
-  stage_finds[STAGE_FLIP2]  += new_hit_cnt - orig_hit_cnt;
+  stage_finds[STAGE_FLIP2] += new_hit_cnt - orig_hit_cnt;
   stage_cycles[STAGE_FLIP2] += stage_max;
+
+#if 1
+  if (enable_base_prob == 1)
+  {
+    /* fork 2/1 */
+    stage_name = "bitflip_ya 2/1";
+    stage_short = "flip_ya_2";
+    stage_max = (len << 3) - 1;
+
+    orig_hit_cnt = new_hit_cnt;
+    s32 temp_byte_index = 0;
+    srand((unsigned int)time(NULL));
+    int random_prob = rand() % (int)sum_prob;
+    float cumulative_probability = 0;
+    for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
+    {
+      temp_byte_index = stage_cur >> 3;
+      if (temp_byte_index < 100)
+      {
+        cumulative_probability += prob_mapper[temp_byte_index];
+        if (cumulative_probability < random_prob)
+        {
+          printf("skip index: %d, cumulative_probability: %f, random_prb: %d\n", temp_byte_index, cumulative_probability, random_prob);
+          continue;
+        }
+      }
+
+      stage_cur_byte = stage_cur >> 3;
+
+      FLIP_BIT(out_buf, stage_cur);
+      FLIP_BIT(out_buf, stage_cur + 1);
+
+      if (common_fuzz_stuff(argv, out_buf, len))
+        goto abandon_entry;
+
+      FLIP_BIT(out_buf, stage_cur);
+      FLIP_BIT(out_buf, stage_cur + 1);
+    }
+
+    new_hit_cnt = queued_paths + unique_crashes;
+
+    stage_finds[STAGE_FLIP2] += new_hit_cnt - orig_hit_cnt;
+    stage_cycles[STAGE_FLIP2] += stage_max;
+  }
+
+#endif
 
   /* Four walking bits. */
 
