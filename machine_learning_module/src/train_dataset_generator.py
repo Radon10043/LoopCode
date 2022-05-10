@@ -89,13 +89,12 @@ def gen_train_dataset_with_bytes_array(max_feature_length=100):
     return x_data, y_data
 
 
-def read_afl_testcase(max_feature_length=100):
-    testcase_dirs = ["../c_example/temp/out/ya", "../c_example/temp/out/crashes", "../c_example/temp/out/queue",
-                     "../c_example/temp/out/hangs"]
+def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_path=None):
+    testcase_dirs = [f"{base_testcase_path}/ya", f"{base_testcase_path}/crashes", f"{base_testcase_path}/queue",
+                     f"{base_testcase_path}/hangs"]
     x_data = []
     y_data = []
-    bb_file_txt_path = "../c_example/temp/BBFile.txt"
-    with open(bb_file_txt_path, 'r') as f:
+    with open(bb_file_path, 'r') as f:
         bb_size = len(f.readlines())
     longest_testcase_length = 0
     for testcase_dir in testcase_dirs:

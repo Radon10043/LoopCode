@@ -3,7 +3,7 @@ import os
 import shutil
 
 
-def fusion(summaries):
+def fusion(summaries, summaries_path):
     indexes_and_probabilities = dict()
     for summary in summaries:
         for index, probability in summary:
@@ -11,9 +11,11 @@ def fusion(summaries):
                 indexes_and_probabilities[index] = probability
             else:
                 indexes_and_probabilities[index] += probability
-    with open("../out/fusion.csv", "w") as f:
+    file_path = f"{summaries_path}/fusion.csv"
+    with open(file_path, "w") as f:
         for index, probability in indexes_and_probabilities.items():
             f.write(str(index) + "," + str(probability) + "\n")
+    return file_path
 
 
 def euclidean(point1, point2):
@@ -33,7 +35,8 @@ def euclidean(point1, point2):
 
 def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_layer_sizes, clf, top_k=None,
                                           printer=False,
-                                          label_list_wanted=None):
+                                          label_list_wanted=None,
+                                          summaries_path=None):
     """
     计算权重差异距离累加和
 
@@ -44,6 +47,7 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     :param top_k:
     :param printer:
     :param label_list_wanted:
+    :param summaries_path:
     :return:
     """
     print("hidden_layer_sizes:", hidden_layer_sizes)
@@ -71,10 +75,10 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
         if printer:
             print(summary[:top_k])
         summaries.append(summary[:top_k])
-        with open(f"../out/{str(i)}.csv", "w") as f:
+        with open(f"{summaries_path}/{str(i)}.csv", "w") as f:
             for k in range(top_k):
                 f.write(str(summary[k][0]) + "," + str(summary[k][1]) + "\n")
-    fusion(summaries)
+    return fusion(summaries, summaries_path)
 
 
 def gen_point_3(clf, hidden_layer_sizes, i, j):

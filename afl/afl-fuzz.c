@@ -354,11 +354,11 @@ enum {
 
 /* yagol py module function */
 
-int update_prob_mapper()
+int update_prob_mapper(char *fusion_path)
 {
-  FILE *in = fopen("/home/yagol/PycharmProjects/LoopCode/machine_learning_module/out/fusion.csv", "r");
+  FILE *in = fopen(fusion_path, "r");
   if (in == NULL)
-  {
+  {perror("file can not open or is null");
     exit(1);
     return -1;
   }
@@ -371,7 +371,7 @@ int update_prob_mapper()
     split = strtok(NULL, ",");
     prob_mapper[temp] = atof(split);
     sum_prob += atof(split);
-    printf("%d->%f\n", temp, prob_mapper[temp]);
+    //    printf("%d->%f\n", temp, prob_mapper[temp]);
   }
   fclose(in);
   printf("%f", sum_prob);
@@ -398,12 +398,8 @@ int start_py_module()
 
   int send_num;
   int recv_num;
-  char send_buf[20] = "start py";
-  char recv_buf[20];
-
-  printf("client send: %s\n", send_buf);
-
-  send_num = sendto(sock_fd, send_buf, strlen(send_buf), 0, (struct sockaddr *)&addr_serv, len);
+  char recv_buf[999];// fusion file path
+  send_num = sendto(sock_fd, out_dir, strlen(out_dir), 0, (struct sockaddr *)&addr_serv, len);
 
   if (send_num < 0)
   {
@@ -422,10 +418,10 @@ int start_py_module()
   recv_buf[recv_num] = '\0';
 
   close(sock_fd);
-  if (strcmp(recv_buf, "py end") == 0)
+  if (recv_buf[0] == '/')
   {
     printf("py end success!\n");
-    if (0 == update_prob_mapper())
+    if (0 == update_prob_mapper(recv_buf))
     {
       enable_base_prob = 1;
     }
@@ -5529,6 +5525,10 @@ static u8 fuzz_one(char** argv) {
   stage_finds[STAGE_FLIP1]  += new_hit_cnt - orig_hit_cnt;
   stage_cycles[STAGE_FLIP1] += stage_max;
 
+  /* Yagol: init */
+  s32 temp_byte_index = 0;
+  int random_prob = 0;
+  float cumulative_probability = 0;
   /* Two walking bits. */
 
   stage_name  = "bitflip 2/1";
@@ -5536,10 +5536,24 @@ static u8 fuzz_one(char** argv) {
   stage_max   = (len << 3) - 1;
 
   orig_hit_cnt = new_hit_cnt;
-
+  temp_byte_index = 0;
+  if (enable_base_prob == 1) //训练过后模型，才能得知最大概率
+    random_prob = UR((int)sum_prob);
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-
+    if (enable_base_prob == 1)
+    {
+      temp_byte_index = stage_cur >> 3;
+      if (temp_byte_index < 100)
+      {
+        cumulative_probability += prob_mapper[temp_byte_index];
+        if (cumulative_probability < random_prob)
+        {
+//                    printf("skip index: %d, cumulative_probability: %f, random_prb: %d\n", temp_byte_index, cumulative_probability, random_prob);
+          continue;
+        }
+      }
+    }
     stage_cur_byte = stage_cur >> 3;
 
     FLIP_BIT(out_buf, stage_cur);
@@ -5557,51 +5571,6 @@ static u8 fuzz_one(char** argv) {
   stage_finds[STAGE_FLIP2] += new_hit_cnt - orig_hit_cnt;
   stage_cycles[STAGE_FLIP2] += stage_max;
 
-#if 1
-  if (enable_base_prob == 1)
-  {
-    /* fork 2/1 */
-    stage_name = "bitflip_ya 2/1";
-    stage_short = "flip_ya_2";
-    stage_max = (len << 3) - 1;
-
-    orig_hit_cnt = new_hit_cnt;
-    s32 temp_byte_index = 0;
-    srand((unsigned int)time(NULL));
-    int random_prob = rand() % (int)sum_prob;
-    float cumulative_probability = 0;
-    for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
-    {
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < 100)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          printf("skip index: %d, cumulative_probability: %f, random_prb: %d\n", temp_byte_index, cumulative_probability, random_prob);
-          continue;
-        }
-      }
-
-      stage_cur_byte = stage_cur >> 3;
-
-      FLIP_BIT(out_buf, stage_cur);
-      FLIP_BIT(out_buf, stage_cur + 1);
-
-      if (common_fuzz_stuff(argv, out_buf, len))
-        goto abandon_entry;
-
-      FLIP_BIT(out_buf, stage_cur);
-      FLIP_BIT(out_buf, stage_cur + 1);
-    }
-
-    new_hit_cnt = queued_paths + unique_crashes;
-
-    stage_finds[STAGE_FLIP2] += new_hit_cnt - orig_hit_cnt;
-    stage_cycles[STAGE_FLIP2] += stage_max;
-  }
-
-#endif
 
   /* Four walking bits. */
 
@@ -5610,8 +5579,25 @@ static u8 fuzz_one(char** argv) {
   stage_max   = (len << 3) - 3;
 
   orig_hit_cnt = new_hit_cnt;
-
-  for (stage_cur = 0; stage_cur < stage_max; stage_cur++) {
+  temp_byte_index = 0;
+  if (enable_base_prob == 1)
+    random_prob = UR((int)sum_prob);
+  cumulative_probability = 0;
+  for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
+  {
+    if (enable_base_prob == 1)
+    {
+      temp_byte_index = stage_cur >> 3;
+      if (temp_byte_index < 100)
+      {
+        cumulative_probability += prob_mapper[temp_byte_index];
+        if (cumulative_probability < random_prob)
+        {
+//                    printf("skip index: %d, cumulative_probability: %f, random_prb: %d\n", temp_byte_index, cumulative_probability, random_prob);
+          continue;
+        }
+      }
+    }
 
     stage_cur_byte = stage_cur >> 3;
 
@@ -5665,9 +5651,25 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len;
 
   orig_hit_cnt = new_hit_cnt;
-
-  for (stage_cur = 0; stage_cur < stage_max; stage_cur++) {
-
+  temp_byte_index = 0;
+  if (enable_base_prob == 1)
+    random_prob = UR((int)sum_prob);
+  cumulative_probability = 0;
+  for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
+  {
+    if (enable_base_prob == 1)
+    {
+      temp_byte_index = stage_cur >> 3;
+      if (temp_byte_index < 100)
+      {
+        cumulative_probability += prob_mapper[temp_byte_index];
+        if (cumulative_probability < random_prob)
+        {
+//                    printf("skip index: %d, cumulative_probability: %f, random_prb: %d\n", temp_byte_index, cumulative_probability, random_prob);
+          continue;
+        }
+      }
+    }
     stage_cur_byte = stage_cur;
 
     out_buf[stage_cur] ^= 0xFF;
@@ -5736,9 +5738,25 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len - 1;
 
   orig_hit_cnt = new_hit_cnt;
-
-  for (i = 0; i < len - 1; i++) {
-
+  temp_byte_index = 0;
+  if (enable_base_prob == 1)
+    random_prob = UR((int)sum_prob);
+  cumulative_probability = 0;
+  for (i = 0; i < len - 1; i++)
+  {
+    if (enable_base_prob == 1)
+    {
+      temp_byte_index = stage_cur >> 3;
+      if (temp_byte_index < 100)
+      {
+        cumulative_probability += prob_mapper[temp_byte_index];
+        if (cumulative_probability < random_prob)
+        {
+//                    printf("skip index: %d, cumulative_probability: %f, random_prb: %d\n", temp_byte_index, cumulative_probability, random_prob);
+          continue;
+        }
+      }
+    }
     /* Let's consult the effector map... */
 
     if (!eff_map[EFF_APOS(i)] && !eff_map[EFF_APOS(i + 1)]) {
@@ -5773,9 +5791,26 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len - 3;
 
   orig_hit_cnt = new_hit_cnt;
-
-  for (i = 0; i < len - 3; i++) {
-
+  temp_byte_index = 0;
+  if (enable_base_prob == 1)
+    random_prob = UR((int)sum_prob);
+  cumulative_probability = 0;
+  for (i = 0; i < len - 3; i++)
+  {
+    if (enable_base_prob == 1)
+    {
+      temp_byte_index = i;
+      temp_byte_index = stage_cur >> 3;
+      if (temp_byte_index < 100)
+      {
+        cumulative_probability += prob_mapper[temp_byte_index];
+        if (cumulative_probability < random_prob)
+        {
+//                    printf("skip index: %d, cumulative_probability: %f, random_prb: %d\n", temp_byte_index, cumulative_probability, random_prob);
+          continue;
+        }
+      }
+    }
     /* Let's consult the effector map... */
     if (!eff_map[EFF_APOS(i)] && !eff_map[EFF_APOS(i + 1)] &&
         !eff_map[EFF_APOS(i + 2)] && !eff_map[EFF_APOS(i + 3)]) {
