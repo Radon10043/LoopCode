@@ -354,14 +354,39 @@ enum {
 
 /* yagol py module function */
 
-int start_py_module(){
-	int sock_fd;
-    sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock_fd < 0)
-    {
-        perror("socket");
-        exit(1);
-    }
+int update_prob_mapper()
+{
+  FILE *in = fopen("/home/yagol/PycharmProjects/LoopCode/machine_learning_module/out/fusion.csv", "r");
+  if (in == NULL)
+  {
+    exit(1);
+    return -1;
+  }
+  char buf[1024];
+
+  while (fgets(buf, sizeof(buf), in) != NULL)
+  {
+    char *split = strtok(buf, ",");
+    int temp = atoi(split);
+    split = strtok(NULL, ",");
+    prob_mapper[temp] = atof(split);
+    sum_prob += atof(split);
+    printf("%d->%f\n", temp, prob_mapper[temp]);
+  }
+  fclose(in);
+  printf("%f", sum_prob);
+  return 0;
+}
+
+int start_py_module()
+{
+  int sock_fd;
+  sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock_fd < 0)
+  {
+    perror("socket");
+    exit(1);
+  }
 
   struct sockaddr_in addr_serv;
   int len;
