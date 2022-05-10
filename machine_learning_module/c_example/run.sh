@@ -20,4 +20,4 @@ cd $BASE_PATH
 $CXX e.c $ADDITIONAL -g -o a.out
 $CXX e.c -bbfile=$TEMP_PATH/BBFile.txt -g -o a.out
 cd temp
-$AFL_PATH/afl-fuzz -t 5000 -i testcase -o out ../a.out
+$AFL_PATH/afl-fuzz -p -t 5000 -i testcase -o out ../a.out

@@ -46,9 +46,6 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     :param label_list_wanted:
     :return:
     """
-    if os.path.isdir("../out"):
-        shutil.rmtree("../out")
-    os.mkdir("../out")
     print("hidden_layer_sizes:", hidden_layer_sizes)
     summaries = []
     if top_k is None:
