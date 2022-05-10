@@ -425,8 +425,18 @@ int start_py_module()
   if (strcmp(recv_buf, "py end") == 0)
   {
     printf("py end success!\n");
+    if (0 == update_prob_mapper())
+    {
+      enable_base_prob = 1;
+    }
+    else
+    {
+      enable_base_prob = 0;
+    }
     return 0;
-  }else{
+  }
+  else
+  {
     return -1;
   }
 }
