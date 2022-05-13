@@ -295,9 +295,10 @@ static u32 a_extras_cnt;              /* Total number of tokens available */
 
 static u8* (*post_handler)(u8* buf, u32* len);
 
-static u32 stop_time  = 60;           /* Radon: Fuzzing time */
-static u8 save_myflip = 1;            /* Radon: Save my flip file? */
-static u8 enable_py   = 0;            /* Radon: Enable py module? */
+static u32 stop_time  = 60;           /* Radon: Fuzzing time              */
+static u8 save_myflip = 1;            /* Radon: Save my flip file?        */
+static u8 enable_py   = 0;            /* Radon: Enable py module?         */
+static u32 max_line   = 65536 << 3;   /* Radon: Max line of cov file      */
 
 static int yagol_testcase_counter = 0;    /* Yagol: for count testcase yagol create, used for testcase filename. */
 static int fuzz_loop_round_counter = 0;   /* Yagol: for count fuzz main loop, used for testcase filename. */
@@ -3005,11 +3006,24 @@ static void perform_dry_run(char** argv) {
 
     /* Radon: I dont think it's a good way. */
 
+    u8 cov_finish = 0;
+
     for (u32 offset = 0; offset < 65536; offset++) {
+
       for (u8 value = 128, i = 0; i < 8; i++) {
+
         u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
         fprintf(ocov_f, "%u\n", (*is_cov & (value >> i)) >> (7 - i));
+
+        if ((offset << 3) + i + 1>= max_line) {
+          cov_finish = 1;
+          break;
+        }
+
       }
+
+      if (cov_finish) break;
+
     }
 
     fclose(ocov_f);
@@ -3291,11 +3305,24 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     /* Radon: I dont think it's a good way. */
 
+    u8 cov_finish = 0;
+
     for (u32 offset = 0; offset < 65536; offset++) {
+
       for (u8 value = 128, i = 0; i < 8; i++) {
+
         u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
         fprintf(cov_f, "%u\n", (*is_cov & (value >> i)) >> (7 - i));
+
+        if ((offset << 3) + i + 1>= max_line) {
+          cov_finish = 1;
+          break;
+        }
+
       }
+
+      if (cov_finish) break;
+
     }
 
     fclose(cov_f);
@@ -3367,11 +3394,24 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     /* Radon: I dont think it's a good way. */
 
+    u8 cov_finish = 0;
+
     for (u32 offset = 0; offset < 65536; offset++) {
+
       for (u8 value = 128, i = 0; i < 8; i++) {
+
         u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
         fprintf(qcov_f, "%u\n", (*is_cov & (value >> i)) >> (7 - i));
+
+        if ((offset << 3) + i + 1 >= max_line) {
+          cov_finish = 1;
+          break;
+        }
+
       }
+
+      if (cov_finish) break;
+
     }
 
     fclose(qcov_f);
@@ -3520,11 +3560,24 @@ keep_as_crash:
 
     /* Radon: I dont think it's a good way. */
 
+    u8 cov_finish = 0;
+
     for (u32 offset = 0; offset < 65536; offset++) {
+
       for (u8 value = 128, i = 0; i < 8; i++) {
+
         u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
         fprintf(icov_f, "%u\n", (*is_cov & (value >> i)) >> (7 - i));
+
+        if ((offset << 3) + i + 1 >= max_line) {
+          cov_finish = 1;
+          break;
+        }
+
       }
+
+      if (cov_finish) break;
+
     }
 
   ck_free(icov_fn);
@@ -8047,7 +8100,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:p")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:")) > 0)
 
     switch (opt) {
 
@@ -8242,6 +8295,13 @@ int main(int argc, char** argv) {
 
         if (enable_py) FATAL("Multiple -p options not supported");
         enable_py = 1;
+        break;
+
+      case 'l': /* Max line of cov file */
+
+        if (sscanf(optarg, "%u", &max_line) < 1)
+          FATAL("Bad syntax used for -l");
+
         break;
 
       default:
