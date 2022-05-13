@@ -3003,9 +3003,13 @@ static void perform_dry_run(char** argv) {
 
     if (!ocov_f) PFATAL("fdopen() failed");
 
+    /* Radon: I dont think it's a good way. */
+
     for (u32 offset = 0; offset < 65536; offset++) {
-      u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
-      fprintf(ocov_f, "%u\n", *is_cov);
+      for (u8 value = 128, i = 0; i < 8; i++) {
+        u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+        fprintf(ocov_f, "%u\n", (*is_cov & (value >> i)) >> (7 - i));
+      }
     }
 
     fclose(ocov_f);
@@ -3285,9 +3289,13 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     if (!cov_f) PFATAL("fdopen() failed");
 
+    /* Radon: I dont think it's a good way. */
+
     for (u32 offset = 0; offset < 65536; offset++) {
-      u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
-      fprintf(cov_f, "%u\n", *is_cov);
+      for (u8 value = 128, i = 0; i < 8; i++) {
+        u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+        fprintf(cov_f, "%u\n", (*is_cov & (value >> i)) >> (7 - i));
+      }
     }
 
     fclose(cov_f);
@@ -3357,9 +3365,13 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     if (!qcov_f) PFATAL("fdopen() failed");
 
+    /* Radon: I dont think it's a good way. */
+
     for (u32 offset = 0; offset < 65536; offset++) {
-      u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
-      fprintf(qcov_f, "%u\n", *is_cov);
+      for (u8 value = 128, i = 0; i < 8; i++) {
+        u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+        fprintf(qcov_f, "%u\n", (*is_cov & (value >> i)) >> (7 - i));
+      }
     }
 
     fclose(qcov_f);
@@ -3506,10 +3518,14 @@ keep_as_crash:
 
   if (!icov_f) PFATAL("fdopen() failed");
 
-  for (u32 offset = 0; offset < 65536; offset++) {
-    u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
-    fprintf(icov_f, "%u\n", *is_cov);
-  }
+    /* Radon: I dont think it's a good way. */
+
+    for (u32 offset = 0; offset < 65536; offset++) {
+      for (u8 value = 128, i = 0; i < 8; i++) {
+        u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+        fprintf(icov_f, "%u\n", (*is_cov & (value >> i)) >> (7 - i));
+      }
+    }
 
   ck_free(icov_fn);
 
