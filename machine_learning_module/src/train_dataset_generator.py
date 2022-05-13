@@ -117,11 +117,14 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_p
                                 x = x + (max_feature_length - len(x)) * b'\x00'
                             x_data.append(x)
                         with open(coverage_path, "r") as f:
-                            temp = [int(str(s).strip()) for s in f.readlines()]
+                            temp = []
+                            for i in range(bb_size):
+                                line = f.readline()
+                                temp.append(int(line))
+                                if line == "":
+                                    break
                             if len(temp) < bb_size:
                                 temp = temp + [0] * (bb_size - len(temp))
-                            else:
-                                temp = temp[:bb_size]
                             y_data.append(temp)
     print("longest_testcase_length:", longest_testcase_length)
 

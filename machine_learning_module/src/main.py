@@ -44,7 +44,7 @@ def start_module(printer=True, test_case_path=None, bb_file_path=None):
     feature_size = x_data.shape[1]
     label_size = y_data.shape[1]
     hidden_layer_sizes = (3, 3, 3,)
-    model = train_sk_model(hidden_layer_sizes, x_data, y_data, is_test=True, max_iter=200)
+    model = train_sk_model(hidden_layer_sizes, x_data, y_data, is_test=True, max_iter=200,verbose=printer)
     bb_list_wanted = get_wanted_label_with_low_coverage(y_data, size=2)
     return calculate_weight_diff_for_each_output(feature_size,
                                                  label_size,
@@ -77,7 +77,7 @@ if __name__ == '__main__':
                     res = start_module(printer=False, test_case_path=data, bb_file_path=sys.argv[2])
                     server_socket.sendto(res.encode("utf-8"), client)
         else:
-            start_module(printer=False, test_case_path="../c_example/temp/out",
+            start_module(printer=True, test_case_path="../c_example/temp/out",
                          bb_file_path="../c_example/temp/BBFile.txt")
     else:
         print("error: no bb file path")
