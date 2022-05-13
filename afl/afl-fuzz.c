@@ -3003,9 +3003,9 @@ static void perform_dry_run(char** argv) {
 
     if (!ocov_f) PFATAL("fdopen() failed");
 
-    for (u32 offset = 0; offset < 65536; offset += 8) {
-      u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
-      fprintf(ocov_f, "%llu\n", *is_cov);
+    for (u32 offset = 0; offset < 65536; offset++) {
+      u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+      fprintf(ocov_f, "%u\n", *is_cov);
     }
 
     fclose(ocov_f);
@@ -3285,9 +3285,9 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     if (!cov_f) PFATAL("fdopen() failed");
 
-    for (u32 offset = 0; offset < 65536; offset += 8) {
-      u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
-      fprintf(cov_f, "%llu\n", *is_cov);
+    for (u32 offset = 0; offset < 65536; offset++) {
+      u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+      fprintf(cov_f, "%u\n", *is_cov);
     }
 
     fclose(cov_f);
@@ -3357,9 +3357,9 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     if (!qcov_f) PFATAL("fdopen() failed");
 
-    for (u32 offset = 0; offset < 65536; offset += 8) {
-      u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
-      fprintf(qcov_f, "%llu\n", *is_cov);
+    for (u32 offset = 0; offset < 65536; offset++) {
+      u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+      fprintf(qcov_f, "%u\n", *is_cov);
     }
 
     fclose(qcov_f);
@@ -3506,9 +3506,9 @@ keep_as_crash:
 
   if (!icov_f) PFATAL("fdopen() failed");
 
-  for (u32 offset = 0; offset < 65536; offset += 8) {
-    u64* is_cov = (u64*)(trace_bits + MAP_SIZE + offset);
-    fprintf(icov_f, "%llu\n", *is_cov);
+  for (u32 offset = 0; offset < 65536; offset++) {
+    u8* is_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+    fprintf(icov_f, "%u\n", *is_cov);
   }
 
   ck_free(icov_fn);

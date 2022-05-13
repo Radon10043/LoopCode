@@ -279,13 +279,15 @@ bool AFLCoverage::runOnModule(Module &M) {
     IntegerType *Int32Ty = IntegerType::getInt32Ty(C);
     IntegerType *Int64Ty = IntegerType::getInt64Ty(C);
 
+    IntegerType *Step    = Int8Ty;
+
 #ifdef __x86_64__
     IntegerType *LargestType = Int64Ty;
 #else
     IntegerType *LargestType = Int32Ty;
 #endif
 
-    ConstantInt *One = ConstantInt::get(LargestType, 1);
+    ConstantInt *One = ConstantInt::get(Step, 1);
 
     /* Get globals for the SHM region and the previous location. Note that
       __afl_prev_loc is thread-local. */
@@ -367,11 +369,11 @@ bool AFLCoverage::runOnModule(Module &M) {
         int idx = std::find(bbvec.begin(), bbvec.end(), bbname) - bbvec.begin();
         if (idx < bbvec.size()) {
 
-          // TODO: 目前的step是8byte, 后续需要改成bit或1byte
-          ConstantInt *MapCovLoc = ConstantInt::get(LargestType, MAP_SIZE + idx * 8);
+          // TODO: 目前的step是1byte, 后续需要改成bit或1byte
+          ConstantInt *MapCovLoc = ConstantInt::get(LargestType, MAP_SIZE + idx);
 
           Value* MapCovPtr = IRB.CreateBitCast(
-              IRB.CreateGEP(MapPtr, MapCovLoc), LargestType->getPointerTo());
+              IRB.CreateGEP(MapPtr, MapCovLoc), Step->getPointerTo());
 
           IRB.CreateStore(One, MapCovPtr)
               ->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
