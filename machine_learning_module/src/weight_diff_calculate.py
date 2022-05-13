@@ -1,6 +1,5 @@
-import math
-import os
-import shutil
+import numpy
+from scipy.spatial.distance import cdist
 
 
 def fusion(summaries, summaries_path):
@@ -16,21 +15,6 @@ def fusion(summaries, summaries_path):
         for index, probability in indexes_and_probabilities.items():
             f.write(str(index) + "," + str(probability) + "\n")
     return file_path
-
-
-def euclidean(point1, point2):
-    """
-    计算两点之间的欧式距离
-
-    当维度不超过10维时，用math更快
-    若超过了，则尝试用下面的代码r1 = np.linalg.norm(point1 - point2)
-
-    :param point1:
-    :param point2:
-    :return:
-    """
-    assert len(point1) == len(point2)  # 计算距离时，节点内的数量必须相同
-    return math.dist(point1, point2)
 
 
 def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_layer_sizes, clf, top_k=None,
@@ -65,12 +49,8 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
                 points = gen_point_3(clf, hidden_layer_sizes, i, j)
             else:
                 raise Exception("不支持的隐藏层数量")
-            sum_of_weight_diff = 0
-            for m in range(len(points) - 1):
-                # sum_of_weight_diff += euclidean(points[m], points[m + 1])
-                for n in range(m + 1, len(points)):
-                    sum_of_weight_diff += euclidean(points[m], points[n])
-            summary.append((j, sum_of_weight_diff))
+            c = cdist(points, points, 'mahalanobis')  # 计算每个点到其他点的距离
+            summary.append((j, numpy.triu(c, k=0).sum()))
         summary.sort(key=lambda x: x[1], reverse=True)  # 降序排列，最前面的是最具有影响力的
         if printer:
             print(summary[:top_k])

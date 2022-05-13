@@ -1,5 +1,4 @@
 import os
-import shutil
 import sys
 import numpy
 import socket
@@ -16,7 +15,7 @@ from weight_diff_calculate import calculate_weight_diff_for_each_output
 
 max_features = 100
 PORT = 12012
-SOCKET_MODE = True
+SOCKET_MODE = False
 
 
 def test_case_type_1():
@@ -75,9 +74,7 @@ if __name__ == '__main__':
                 data = receive_data.decode("utf-8")
                 print(f"data: {data}")
                 if data.startswith("/"):
-                    print("start...")
                     res = start_module(printer=False, test_case_path=data, bb_file_path=sys.argv[2])
-                    print("end...")
                     server_socket.sendto(res.encode("utf-8"), client)
         else:
             start_module(printer=False, test_case_path="../c_example/temp/out",

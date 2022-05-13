@@ -285,7 +285,14 @@ bool AFLCoverage::runOnModule(Module &M) {
     IntegerType *LargestType = Int32Ty;
 #endif
 
-    ConstantInt *One = ConstantInt::get(LargestType, 1);
+    /* TODO: Radon: I dont think it's a good way. */
+
+    std::vector<ConstantInt*> bitValue(8);
+    for (int i = 0; i < 8; i++) {
+      bitValue[i] = ConstantInt::get(Int8Ty, 128 >> i);
+    }
+
+    ConstantInt *One = ConstantInt::get(Int8Ty, 1);
 
     /* Get globals for the SHM region and the previous location. Note that
       __afl_prev_loc is thread-local. */
@@ -367,13 +374,16 @@ bool AFLCoverage::runOnModule(Module &M) {
         int idx = std::find(bbvec.begin(), bbvec.end(), bbname) - bbvec.begin();
         if (idx < bbvec.size()) {
 
-          // TODO: 目前的step是8byte, 后续需要改成bit或1byte
-          ConstantInt *MapCovLoc = ConstantInt::get(LargestType, MAP_SIZE + idx * 8);
+          // 目前的step是1bit, 不知道是否写对了
+          ConstantInt *MapCovLoc = ConstantInt::get(LargestType, MAP_SIZE + idx / 8);
 
-          Value* MapCovPtr = IRB.CreateBitCast(
-              IRB.CreateGEP(MapPtr, MapCovLoc), LargestType->getPointerTo());
+          Value *MapCovPtr = IRB.CreateBitCast(
+              IRB.CreateGEP(MapPtr, MapCovLoc), Int8Ty->getPointerTo());
+          LoadInst *MapCov = IRB.CreateLoad(MapCovPtr);
+          MapCov->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
 
-          IRB.CreateStore(One, MapCovPtr)
+          Value *OrCov = IRB.CreateOr(MapCov, bitValue[idx % 8]);
+          IRB.CreateStore(OrCov, MapCovPtr)
               ->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
 
         }
