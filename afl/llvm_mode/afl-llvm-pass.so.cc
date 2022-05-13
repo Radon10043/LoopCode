@@ -292,8 +292,6 @@ bool AFLCoverage::runOnModule(Module &M) {
       bitValue[i] = ConstantInt::get(Int8Ty, 128 >> i);
     }
 
-    ConstantInt *One = ConstantInt::get(Int8Ty, 1);
-
     /* Get globals for the SHM region and the previous location. Note that
       __afl_prev_loc is thread-local. */
 
