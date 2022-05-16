@@ -16,5 +16,8 @@ $CC loop.c $ADDITIONAL -g -o loop.out
 
 $CC loop.c -bbfile=$TMP_DIR/BBFile.txt -g -o loop.out
 
-cd afl/temp; mkdir in; echo "" > in/in; echo "" > in/in2
-$AFL/afl-fuzz -m none -i in -o out ../../loop.out
+# Get max line
+line=$(wc -l $TMP_DIR/BBFile.txt | cut -d ' ' -f 1)
+
+cd afl/temp; mkdir in; echo "000" > in/in
+$AFL/afl-fuzz -l $line -m none -i in -o out ../../loop.out
