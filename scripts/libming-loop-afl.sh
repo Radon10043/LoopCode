@@ -13,6 +13,7 @@ export SUBJECT=$PWD; export TMP_DIR=$PWD/obj-loop/temp
 export CC=$AFL/afl-clang-fast; export CXX=$AFL/afl-clang-fast++
 export LDFLAGS=-lpthread
 
+./autogen.sh
 cd obj-loop; ../configure --disable-shared --prefix=`pwd`
 make clean; make
 
