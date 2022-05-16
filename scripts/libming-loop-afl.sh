@@ -12,13 +12,20 @@ export AFL=/path/to/afl
 export SUBJECT=$PWD; export TMP_DIR=$PWD/obj-loop/temp
 export CC=$AFL/afl-clang-fast; export CXX=$AFL/afl-clang-fast++
 export LDFLAGS=-lpthread
+export ADDITIONAL="-outdir=$TMP_DIR"
 
 ./autogen.sh
-cd obj-loop; ../configure --disable-shared --prefix=`pwd`
+
+# 1st build
+cd obj-loop; CFLAGS="$ADDITIONAL" CXXFLAGS="$ADDITIONAL" ../configure --disable-shared --prefix=`pwd`
 make clean; make
 
 # Get max line
 line=$(wc -l $TMP_DIR/BBFile.txt | cut -d ' ' -f 1)
+
+# 2nd build
+CFLAGS="-bbfile=$TMP_DIR/BBFile.txt" CXXFLAGS="-bbfile=$TMP_DIR/BBFile.txt" ../configure --disable-shared --prefix=`pwd`
+make clean; make
 
 if [ -d "in/" ]; then
     rm -r in
