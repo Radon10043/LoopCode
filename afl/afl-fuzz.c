@@ -308,6 +308,7 @@ static float sum_prob = 0;                /* Yagol: for mutate probability sum *
 static u8 enable_base_prob = 0;           /* Yagol: can enable mutate base prob? */
 static int MAX_TESTCASE_SKIP_SIZE = 100;  /* Yagol: 用于py模块训练的最大测试用例大小，决定了在skip的时候最大值 */
 static int MIN_TESTCASE_SEND_TO_PY = 100; /* Yagol: 最低给py发送的测试用例数量，越多，py训练的越充分*/
+static int real_time_testcase_counter=0; /* Yagol:实时记录存在cov的测试用例数量*/
 /* Interesting values, as per config.h */
 
 static s8  interesting_8[]  = { INTERESTING_8 };
@@ -3033,6 +3034,7 @@ static void perform_dry_run(char** argv) {
     if (ocov_fd < 0) PFATAL("Unable to create '%s'", ocov_fn);
 
     ck_free(ocov_fn);
+    real_time_testcase_counter++;
 
     ocov_f = fdopen(ocov_fd, "w");
 
@@ -3332,6 +3334,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     if (cov_fd < 0) PFATAL("Unable to create '%s'", cov_fn);
 
     ck_free(cov_fn);
+    real_time_testcase_counter++;
 
     cov_f = fdopen(cov_fd, "w");
 
@@ -3421,6 +3424,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     if (qcov_fd < 0) PFATAL("Unable to create '%s'", qcov_fn);
 
     ck_free(qcov_fn);
+    real_time_testcase_counter++;
 
     qcov_f = fdopen(qcov_fd, "w");
 
@@ -3587,6 +3591,7 @@ keep_as_crash:
   FILE* icov_f;
 
   if (icov_fd < 0) PFATAL("Unable to create '%s'", icov_fn);
+  real_time_testcase_counter++;
 
   icov_f = fdopen(icov_fd, "w");
 
@@ -8694,9 +8699,9 @@ int main(int argc, char** argv) {
       {
         if (get_cur_time() - last_path_time >= 1000 * 10) // 10秒没有覆盖新路径，执行py，1000 milliseconds = 1 second
         {
-          if (total_execs >= MIN_TESTCASE_SEND_TO_PY && last_py_train_testcase != total_execs) //测试用例至少MIN个，并且测试用例发生了变化，也就是生成了新的测试用例
+          if (total_execs >= MIN_TESTCASE_SEND_TO_PY && last_py_train_testcase != real_time_testcase_counter) //测试用例至少MIN个，并且测试用例发生了变化，也就是生成了新的测试用例
           {
-            last_py_train_testcase = total_execs; //更新测试用例数量
+            last_py_train_testcase = real_time_testcase_counter; //更新测试用例数量
             if (-1 == start_py_module())
             {
               FATAL("start_py_module failed");
