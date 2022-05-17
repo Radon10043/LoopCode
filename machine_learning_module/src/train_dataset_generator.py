@@ -3,6 +3,7 @@
 
 """
 import os
+import shutil
 from collections import Counter
 
 import pandas as pd
@@ -89,11 +90,15 @@ def gen_train_dataset_with_bytes_array(max_feature_length=100):
     return x_data, y_data
 
 
+already_read_testcase = set()
+
+
 def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_path=None):
     testcase_dirs = [f"{base_testcase_path}/ya", f"{base_testcase_path}/crashes", f"{base_testcase_path}/queue",
                      f"{base_testcase_path}/hangs"]
     x_data = []
     y_data = []
+    is_first_read = True if len(already_read_testcase) == 0 else False
     with open(bb_file_path, 'r') as f:
         bb_size = len(f.readlines())
     longest_testcase_length = 0
@@ -103,6 +108,10 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_p
                 if file_name.endswith("_cov.txt"):
                     coverage_path = os.path.join(root, file_name)
                     testcase_bin_path = os.path.join(root, file_name.replace("_cov.txt", ""))
+                    if testcase_bin_path in already_read_testcase:
+                        continue
+                    else:
+                        already_read_testcase.add(testcase_bin_path)
                     if not os.path.exists(testcase_bin_path):
                         print("ERROR: NO TESTCASE BIN FILE, BUT HAVE COVERAGE INFO", testcase_bin_path)  # 没有对应的测试用例
                     else:
@@ -126,6 +135,10 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_p
                             if len(temp) < bb_size:
                                 temp = temp + [0] * (bb_size - len(temp))
                             y_data.append(temp)
+                    if root.endswith("ya"):
+                        os.remove(coverage_path)
+                        os.remove(testcase_bin_path)
+                        print("remove", coverage_path, testcase_bin_path)
     print("longest_testcase_length:", longest_testcase_length)
 
-    return x_data, y_data
+    return x_data, y_data, is_first_read

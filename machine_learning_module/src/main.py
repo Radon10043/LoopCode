@@ -15,7 +15,8 @@ from weight_diff_calculate import calculate_weight_diff_for_each_output
 
 max_features = 100
 PORT = 12012
-SOCKET_MODE = False
+SOCKET_MODE = True
+hidden_layer_sizes = (3, 3, 3,)  # 隐藏层
 
 
 def test_case_type_1():
@@ -35,24 +36,32 @@ def test_case_type_2():
 
 
 def start_module(printer=True, test_case_path=None, bb_file_path=None):
-    x_data, y_data = read_afl_testcase(max_feature_length=max_features,
-                                       base_testcase_path=test_case_path,
-                                       bb_file_path=bb_file_path)
+    x_data, y_data, is_first_read = read_afl_testcase(max_feature_length=max_features,
+                                                      # 最大特征长度, 也就是字节序列的长度，不够的话，后面补0，够的话，取前面的
+                                                      base_testcase_path=test_case_path,
+                                                      # fuzz的out文件夹的地址，会自动搜寻crash/hang/ya等文件夹
+                                                      bb_file_path=bb_file_path)  # bb_file的地址，用于处理标签，使标签的长度为基本块的个数
     x_data, y_data = numpy.array(x_data), numpy.array(y_data)
     assert x_data.shape[0] == y_data.shape[0]
     print(f"total train data size: {x_data.shape[0]}")
     feature_size = x_data.shape[1]
     label_size = y_data.shape[1]
-    hidden_layer_sizes = (3, 3, 3,)
-    model = train_sk_model(hidden_layer_sizes, x_data, y_data, is_test=True, max_iter=200,verbose=printer)
-    bb_list_wanted = get_wanted_label_with_low_coverage(y_data, size=2)
-    return calculate_weight_diff_for_each_output(feature_size,
-                                                 label_size,
-                                                 hidden_layer_sizes,
-                                                 clf=model,
-                                                 printer=printer,
-                                                 label_list_wanted=bb_list_wanted,
-                                                 summaries_path=os.path.dirname(bb_file_path))
+    model = train_sk_model(
+        x_data,  # 特征
+        y_data,  # 标签
+        is_test=True,  # 是否切割数据集，用于输出f1值
+        partial_fit=not is_first_read
+    )
+    bb_list_wanted = get_wanted_label_with_low_coverage(y_data, size=2)  # 根据覆盖情况，获得最差的size个基本块的序号
+    return calculate_weight_diff_for_each_output(feature_size,  # 特征的长度
+                                                 label_size,  # 标签的长度
+                                                 hidden_layer_sizes,  # 隐藏层
+                                                 clf=model,  # 模型
+                                                 printer=printer,  # 是否打印计算过程
+                                                 label_list_wanted=bb_list_wanted,  # 想要优先覆盖的基本块的序号
+                                                 summaries_path=os.path.dirname(bb_file_path),  # 输出的文件夹，会自动创建fusion.csv
+                                                 top_k=None,  # 只输出前top_k个字节序列,None表示全部输出
+                                                 )
 
 
 """
@@ -74,10 +83,10 @@ if __name__ == '__main__':
                 data = receive_data.decode("utf-8")
                 print(f"data: {data}")
                 if data.startswith("/"):
-                    res = start_module(printer=False, test_case_path=data, bb_file_path=sys.argv[2])
+                    res = start_module(printer=True, test_case_path=data, bb_file_path=sys.argv[2])
                     server_socket.sendto(res.encode("utf-8"), client)
         else:
-            start_module(printer=True, test_case_path="../c_example/temp/out",
-                         bb_file_path="../c_example/temp/BBFile.txt")
+            start_module(printer=True, test_case_path="/home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/out",
+                         bb_file_path="/home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/temp/BBFile.txt")
     else:
         print("error: no bb file path")

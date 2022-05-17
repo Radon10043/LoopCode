@@ -28,16 +28,16 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     :param label_sizes:
     :param hidden_layer_sizes:
     :param clf: 模型，必须提供权重向量
-    :param top_k:
+    :param top_k: 取前k个字节序列的位置
     :param printer:
-    :param label_list_wanted:
+    :param label_list_wanted: 想要覆盖的基本快，也就是关注的基本快的序号
     :param summaries_path:
     :return:
     """
     print("hidden_layer_sizes:", hidden_layer_sizes)
     summaries = []
     if top_k is None:
-        top_k = label_sizes
+        top_k = feature_sizes
     for i in range(label_sizes):
         if i not in label_list_wanted:
             continue
