@@ -6,10 +6,9 @@
 * 2022-04-25 基于二进制比特数组的模型，准确率可达到0.9以上
 * 2022-04-25 将每8比特作为一个字节，尝试应用模型，失败，因为模型的每一个x内不能再划分数组
 * 2022-04-25 采用NEUZZ代码中的方法，直接读取字符串，使用bytearray转换为字节串，再转换为字节数组，能够训练模型，准确率为0.3以下
-* 2022-04-28
+* 2022-05-19
 
-|            | afl | afl-model |
-|------------|-----|--------|
-| x=30       | yes |        |
-| x=51       | -   |           |
-| x=overflow | yes |        |
+|          | index | afl                                        | afl-model-guide                            |
+|----------|-------|--------------------------------------------|--------------------------------------------|
+| swftophp | 1     | 49min with 1713 paths and 132 uniq crashes | 37min with 1937 paths and 109 uniq crashes |
+| swftophp | 2     | 30min with 1466 paths and 101 uniq crashes | 30min with 1685 paths and 101 uniq crashes |
