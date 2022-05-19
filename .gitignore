@@ -7,3 +7,5 @@ machine_learning_module/c_example/*.out
 machine_learning_module/out
 scripts/LOOP
 scripts/SRC
+/scripts/LOOP/
+/scripts/SRC/
