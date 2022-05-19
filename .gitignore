@@ -10,3 +10,4 @@ scripts/SRC
 /scripts/LOOP/
 /scripts/SRC/
 /scripts/LOOP/obj-loop/
+/machine_learning_module/src/__pycache__
