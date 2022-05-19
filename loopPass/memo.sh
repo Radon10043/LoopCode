@@ -2,7 +2,7 @@
 # @Author: Radon
 # @Date: 2022-02-20 16:43:09
  # @LastEditors: Radon
- # @LastEditTime: 2022-05-06 16:06:54
+ # @LastEditTime: 2022-05-17 14:41:08
 # @Description: Hi, say something
 ###
 
@@ -17,6 +17,9 @@ clang -g -S -emit-llvm -fno-discard-value-names -Xclang -load -Xclang build/idtf
 
 # Pass3: 识别循环与分支
 clang -g -S -emit-llvm -fno-discard-value-names -Xclang -load -Xclang build/pass3/libPass3.so examples/3_loopBranch/lb.c -o examples/3_loopBranch/lb.ll
+
+# Pass4: 识别处于循环中的基本块类型
+clang -g -S -emit-llvm -Xclang -load -Xclang build/pass4/libPass4.so examples/3_loopBranch/lb.c -o examples/3_loopBranch/lb.ll
 
 # 获得mjs的循环BB
 cd ~/Documents/fuzzing/mjs/mjs-issues-78
