@@ -91,6 +91,7 @@ def gen_train_dataset_with_bytes_array(max_feature_length=100):
 
 
 already_read_testcase = set()
+coverage_info = dict()
 
 
 def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_path=None):
@@ -100,7 +101,7 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_p
     y_data = []
     is_first_read = True if len(already_read_testcase) == 0 else False
     with open(bb_file_path, 'r') as f:
-        bb_size = len(f.readlines())
+        bb_size = len(f.readlines())  # 记录总共有多少基本快
     longest_testcase_length = 0
     for testcase_dir in testcase_dirs:
         for root, dirs, files in os.walk(testcase_dir):
@@ -127,18 +128,22 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_p
                             x_data.append(x)
                         with open(coverage_path, "r") as f:
                             temp = []
-                            for i in range(bb_size):
+                            for i in range(bb_size):  # 只读取前bb_size行
                                 line = f.readline()
-                                temp.append(int(line))
-                                if line == "":
+                                line = int(line)
+                                temp.append(line)
+                                if line == 1:  # 覆盖了第i个基本快
+                                    coverage_bb_times = coverage_info.get(i, 0)
+                                    coverage_bb_times += 1  # 更新覆盖情况统计
+                                    coverage_info[i] = coverage_bb_times
+                                if line == "":  # 读取到文件的结尾了
                                     break
                             if len(temp) < bb_size:
                                 temp = temp + [0] * (bb_size - len(temp))
                             y_data.append(temp)
-                    if root.endswith("ya"):
+                    if root.endswith("ya"):  # 清空ya文件夹的测试用例，因为这些测试用例只提供模型训练数据，没有其他作用
                         os.remove(coverage_path)
                         os.remove(testcase_bin_path)
-                        print("remove", coverage_path, testcase_bin_path)
     print("longest_testcase_length:", longest_testcase_length)
 
     return x_data, y_data, is_first_read

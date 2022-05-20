@@ -365,7 +365,7 @@ int update_prob_mapper(char *fusion_path)
   {
     perror("file can not open or is null");
     exit(1); //文件打不开，退出整个程序
-    return -1;
+    return -1; // 好像无意义了，因为退出了？
   }
   char buf[1024]; //用于读取文件的一行
 
@@ -4350,7 +4350,7 @@ static void show_stats(void) {
 
   sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
           " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" : 
-          cYEL "american fuzzy lop (yys)", use_banner);
+          cYEL "american fuzzy lop (Radon's CFL)", use_banner);
 
   SAYF("\n%s\n\n", tmp);
 

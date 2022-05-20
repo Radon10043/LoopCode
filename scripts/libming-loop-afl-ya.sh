@@ -34,8 +34,8 @@ fi
 
 mkdir in; wget -P in http://condor.depaul.edu/sjost/hci430/flash-examples/swf/bumble-bee1.swf
 
-#$AFL/afl-fuzz -k 30 -l $line -m none -i in -o out ./util/swftophp @@
+#$AFL/afl-fuzz -k 60 -l $line -m none -i in -o out ./util/swftophp @@
 #
 #$PY_PATH $PY_MAIN_PATH True $TMP_DIR/BBFile.txt &$AFL/afl-fuzz -p -k 600 -l $line -m none -i in -o out /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
 #
-$AFL/afl-fuzz -p -k 30 -l $line -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
+$AFL/afl-fuzz -p -k 60 -l $line -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
