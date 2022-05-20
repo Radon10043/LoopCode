@@ -3,6 +3,7 @@
 
 """
 import os
+import shutil
 from collections import Counter
 
 import pandas as pd
@@ -89,14 +90,18 @@ def gen_train_dataset_with_bytes_array(max_feature_length=100):
     return x_data, y_data
 
 
-def read_afl_testcase(max_feature_length=100):
-    testcase_dirs = ["../c_example/temp/out/ya", "../c_example/temp/out/crashes", "../c_example/temp/out/queue",
-                     "../c_example/temp/out/hangs"]
+already_read_testcase = set()
+coverage_info = dict()
+
+
+def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_path=None):
+    testcase_dirs = [f"{base_testcase_path}/ya", f"{base_testcase_path}/crashes", f"{base_testcase_path}/queue",
+                     f"{base_testcase_path}/hangs"]
     x_data = []
     y_data = []
-    bb_file_txt_path = "../c_example/temp/BBFile.txt"
-    with open(bb_file_txt_path, 'r') as f:
-        bb_size = len(f.readlines())
+    is_first_read = True if len(already_read_testcase) == 0 else False
+    with open(bb_file_path, 'r') as f:
+        bb_size = len(f.readlines())  # 记录总共有多少基本快
     longest_testcase_length = 0
     for testcase_dir in testcase_dirs:
         for root, dirs, files in os.walk(testcase_dir):
@@ -104,6 +109,10 @@ def read_afl_testcase(max_feature_length=100):
                 if file_name.endswith("_cov.txt"):
                     coverage_path = os.path.join(root, file_name)
                     testcase_bin_path = os.path.join(root, file_name.replace("_cov.txt", ""))
+                    if testcase_bin_path in already_read_testcase:
+                        continue
+                    else:
+                        already_read_testcase.add(testcase_bin_path)
                     if not os.path.exists(testcase_bin_path):
                         print("ERROR: NO TESTCASE BIN FILE, BUT HAVE COVERAGE INFO", testcase_bin_path)  # 没有对应的测试用例
                     else:
@@ -118,12 +127,23 @@ def read_afl_testcase(max_feature_length=100):
                                 x = x + (max_feature_length - len(x)) * b'\x00'
                             x_data.append(x)
                         with open(coverage_path, "r") as f:
-                            temp = [int(str(s).strip()) for s in f.readlines()]
+                            temp = []
+                            for i in range(bb_size):  # 只读取前bb_size行
+                                line = f.readline()
+                                line = int(line)
+                                temp.append(line)
+                                if line == 1:  # 覆盖了第i个基本快
+                                    coverage_bb_times = coverage_info.get(i, 0)
+                                    coverage_bb_times += 1  # 更新覆盖情况统计
+                                    coverage_info[i] = coverage_bb_times
+                                if line == "":  # 读取到文件的结尾了
+                                    break
                             if len(temp) < bb_size:
                                 temp = temp + [0] * (bb_size - len(temp))
-                            else:
-                                temp = temp[:bb_size]
                             y_data.append(temp)
+                    if root.endswith("ya"):  # 清空ya文件夹的测试用例，因为这些测试用例只提供模型训练数据，没有其他作用
+                        os.remove(coverage_path)
+                        os.remove(testcase_bin_path)
     print("longest_testcase_length:", longest_testcase_length)
 
-    return x_data, y_data
+    return x_data, y_data, is_first_read

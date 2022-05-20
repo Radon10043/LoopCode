@@ -1,9 +1,8 @@
-import math
-import os
-import shutil
+import numpy
+from scipy.spatial.distance import cdist
 
 
-def fusion(summaries):
+def fusion(summaries, summaries_path):
     indexes_and_probabilities = dict()
     for summary in summaries:
         for index, probability in summary:
@@ -11,29 +10,17 @@ def fusion(summaries):
                 indexes_and_probabilities[index] = probability
             else:
                 indexes_and_probabilities[index] += probability
-    with open("../out/fusion.csv", "w") as f:
+    file_path = f"{summaries_path}/fusion.csv"
+    with open(file_path, "w") as f:
         for index, probability in indexes_and_probabilities.items():
             f.write(str(index) + "," + str(probability) + "\n")
-
-
-def euclidean(point1, point2):
-    """
-    计算两点之间的欧式距离
-
-    当维度不超过10维时，用math更快
-    若超过了，则尝试用下面的代码r1 = np.linalg.norm(point1 - point2)
-
-    :param point1:
-    :param point2:
-    :return:
-    """
-    assert len(point1) == len(point2)  # 计算距离时，节点内的数量必须相同
-    return math.dist(point1, point2)
+    return file_path
 
 
 def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_layer_sizes, clf, top_k=None,
                                           printer=False,
-                                          label_list_wanted=None):
+                                          label_list_wanted=None,
+                                          summaries_path=None):
     """
     计算权重差异距离累加和
 
@@ -41,18 +28,16 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     :param label_sizes:
     :param hidden_layer_sizes:
     :param clf: 模型，必须提供权重向量
-    :param top_k:
+    :param top_k: 取前k个字节序列的位置
     :param printer:
-    :param label_list_wanted:
+    :param label_list_wanted: 想要覆盖的基本快，也就是关注的基本快的序号
+    :param summaries_path:
     :return:
     """
-    if os.path.isdir("../out"):
-        shutil.rmtree("../out")
-    os.mkdir("../out")
     print("hidden_layer_sizes:", hidden_layer_sizes)
     summaries = []
     if top_k is None:
-        top_k = label_sizes
+        top_k = feature_sizes
     for i in range(label_sizes):
         if i not in label_list_wanted:
             continue
@@ -64,20 +49,16 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
                 points = gen_point_3(clf, hidden_layer_sizes, i, j)
             else:
                 raise Exception("不支持的隐藏层数量")
-            sum_of_weight_diff = 0
-            for m in range(len(points) - 1):
-                # sum_of_weight_diff += euclidean(points[m], points[m + 1])
-                for n in range(m + 1, len(points)):
-                    sum_of_weight_diff += euclidean(points[m], points[n])
-            summary.append((j, sum_of_weight_diff))
+            c = cdist(points, points, 'mahalanobis')  # 计算每个点到其他点的距离
+            summary.append((j, numpy.triu(c, k=0).sum()))
         summary.sort(key=lambda x: x[1], reverse=True)  # 降序排列，最前面的是最具有影响力的
         if printer:
             print(summary[:top_k])
         summaries.append(summary[:top_k])
-        with open(f"../out/{str(i)}.csv", "w") as f:
+        with open(f"{summaries_path}/{str(i)}.csv", "w") as f:
             for k in range(top_k):
                 f.write(str(summary[k][0]) + "," + str(summary[k][1]) + "\n")
-    fusion(summaries)
+    return fusion(summaries, summaries_path)
 
 
 def gen_point_3(clf, hidden_layer_sizes, i, j):

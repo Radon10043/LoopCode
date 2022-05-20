@@ -5,3 +5,9 @@ machine_learning_module/testcase.csv
 machine_learning_module/c_example/temp
 machine_learning_module/c_example/*.out
 machine_learning_module/out
+scripts/LOOP
+scripts/SRC
+/scripts/LOOP/
+/scripts/SRC/
+/scripts/LOOP/obj-loop/
+/machine_learning_module/src/__pycache__
