@@ -33,4 +33,9 @@ make clean all
 
 mkdir in
 cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
+#原版，非bb输入
+#$AFL/afl-fuzz -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+#非模型，原版
 $AFL/afl-fuzz -k 30 -l $line -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+# 模型
+#$AFL/afl-fuzz -p -k 30 -l $line -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
