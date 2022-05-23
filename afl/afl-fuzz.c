@@ -8695,7 +8695,7 @@ int main(int argc, char** argv) {
     // yagol py module
     if (enable_py) //根据afl的参数，是否开启py模块
     {
-      if (last_path_time != 0) //运行过一次
+      if (last_path_time != 0) //运行过一次,或者至少发现了一个新路径
       {
         if (get_cur_time() - last_path_time >= 1000 * 10) // 10秒没有覆盖新路径，执行py，1000 milliseconds = 1 second
         {
