@@ -94,14 +94,12 @@ already_read_testcase = set()
 coverage_info = dict()
 
 
-def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_path=None):
+def read_afl_testcase(max_feature_length=100, base_testcase_path=None):
     testcase_dirs = [f"{base_testcase_path}/ya", f"{base_testcase_path}/crashes", f"{base_testcase_path}/queue",
                      f"{base_testcase_path}/hangs"]
     x_data = []
     y_data = []
     is_first_read = True if len(already_read_testcase) == 0 else False
-    with open(bb_file_path, 'r') as f:
-        bb_size = len(f.readlines())  # 记录总共有多少基本快
     longest_testcase_length = 0
     for testcase_dir in testcase_dirs:
         for root, dirs, files in os.walk(testcase_dir):
@@ -128,8 +126,8 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_p
                             x_data.append(x)
                         with open(coverage_path, "r") as f:
                             temp = []
-                            for i in range(bb_size):  # 只读取前bb_size行
-                                line = f.readline()
+                            lines = f.readlines()
+                            for i, line in enumerate(lines):  # 只读取前bb_size行
                                 line = int(line)
                                 temp.append(line)
                                 if line == 1:  # 覆盖了第i个基本快
@@ -138,8 +136,7 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, bb_file_p
                                     coverage_info[i] = coverage_bb_times
                                 if line == "":  # 读取到文件的结尾了
                                     break
-                            if len(temp) < bb_size:
-                                temp = temp + [0] * (bb_size - len(temp))
+                            assert len(temp) == len(lines)
                             y_data.append(temp)
                     if root.endswith("ya"):  # 清空ya文件夹的测试用例，因为这些测试用例只提供模型训练数据，没有其他作用
                         os.remove(coverage_path)
