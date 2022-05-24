@@ -37,6 +37,7 @@ CFLAGS="$ADDITIONAL" CXXFLAGS="$ADDITIONAL" cmake ..
 make clean all
 
 mkdir in
-cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
+# cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
+echo "" > in/in.jp2
 
 $AFL/afl-fuzz -l $line -m none -i in -o out src/app/jasper --output /tmp/out.jpg --input @@
