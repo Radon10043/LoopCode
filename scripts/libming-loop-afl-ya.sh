@@ -9,9 +9,9 @@ mkdir obj-loop
 mkdir obj-loop/temp
 
 # AFL Path
-export AFL=/home/yagol/PycharmProjects/LoopCode/afl
+export AFL=/home/yagol/LoopCode/afl
 export PY_PATH=/home/yagol/anaconda3/envs/LoopCode/bin/python
-export PY_MAIN_PATH=/home/yagol/PycharmProjects/LoopCode/machine_learning_module/src/main.py
+export PY_MAIN_PATH=/home/yagol/LoopCode/machine_learning_module/src/main.py
 export SUBJECT=$PWD
 export TMP_DIR=$PWD/obj-loop/temp
 export CC=$AFL/afl-clang-fast
@@ -41,8 +41,8 @@ fi
 
 mkdir in
 wget -P in http://condor.depaul.edu/sjost/hci430/flash-examples/swf/bumble-bee1.swf
-
-$AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
+# do not forget to change
+# $AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
 #
 #$PY_PATH $PY_MAIN_PATH True $TMP_DIR/BBFile.txt &$AFL/afl-fuzz -p -k 600 -l $line -m none -i in -o out /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
 #
