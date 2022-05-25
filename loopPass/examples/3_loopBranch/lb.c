@@ -2,12 +2,12 @@
  * @Author: Radon
  * @Date: 2022-03-28 15:08:33
  * @LastEditors: Radon
- * @LastEditTime: 2022-03-28 17:09:58
+ * @LastEditTime: 2022-05-25 14:16:15
  * @Description: Hi, say something
  */
 #include <stdio.h>
 
-int main(int arhc, char **argv) {
+int main(int argc, char **argv) {
   int arr[3] = {0};
   scanf("%d %d %d", &arr[0], &arr[1], &arr[2]);
 
