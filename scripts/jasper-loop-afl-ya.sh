@@ -13,6 +13,7 @@ mkdir obj-loop/temp
 export AFL=/home/yagol/LoopCode/afl
 export SUBJECT=$PWD
 export TMP_DIR=$PWD/obj-loop/temp
+export PY_OUTPUT_DIR_PATH=$TMP_DIR/py.out
 export CC=$AFL/afl-clang-fast
 export CXX=$AFL/afl-clang-fast++
 export LDFLAGS=-lpthread
@@ -47,5 +48,5 @@ echo "" >in/in.jp2
 #非模型, 原版
 #$AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
 # 模型
-$PY_PATH $PY_MAIN_PATH >$PY_OUTPUT_DIR_PATH & # 后台运行py
+$PY_PATH -u $PY_MAIN_PATH >$PY_OUTPUT_DIR_PATH & # 后台运行py
 $AFL/afl-fuzz -p -k 60 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
