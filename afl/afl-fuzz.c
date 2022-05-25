@@ -6692,7 +6692,7 @@ havoc_stage:
     u32 use_stacking = 1 << (1 + UR(HAVOC_STACK_POW2));
 
     stage_cur_val = use_stacking;
- 
+
     for (i = 0; i < use_stacking; i++) {
 
       switch (UR(15 + ((extras_cnt + a_extras_cnt) ? 2 : 0))) {
@@ -6704,7 +6704,7 @@ havoc_stage:
           FLIP_BIT(out_buf, UR(temp_len << 3));
           break;
 
-        case 1: 
+        case 1:
 
           /* Set byte to interesting value. */
 
@@ -6738,7 +6738,7 @@ havoc_stage:
           if (temp_len < 4) break;
 
           if (UR(2)) {
-  
+
             *(u32*)(out_buf + UR(temp_len - 3)) =
               interesting_32[UR(sizeof(interesting_32) >> 2)];
 
@@ -8695,7 +8695,7 @@ int main(int argc, char** argv) {
     // yagol py module
     if (enable_py) //根据afl的参数，是否开启py模块
     {
-      if (last_path_time != 0) //运行过一次
+      if (last_path_time != 0) //运行过一次,或者至少发现了一个新路径
       {
         if (get_cur_time() - last_path_time >= 1000 * 10) // 10秒没有覆盖新路径，执行py，1000 milliseconds = 1 second
         {
