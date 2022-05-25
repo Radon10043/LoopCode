@@ -9,9 +9,16 @@
 * 2022-05-20 参数: `layer=(3,3,3,), top_k=None, max_feature=100, select_bb_size=2`.
   需要注意的是，现在选取bb的标准是**这批**数据里最少覆盖的`select_bb_size`个bb
 
-|          | index | time limit | afl                                        | afl-model-guide                                |
-|----------|-------|------------|--------------------------------------------|------------------------------------------------|
-| swftophp | 1     | -          | 49min with 1713 paths and 132 uniq crashes | 37min with 1937 paths / 109 uniq crashes / ?   |
-| swftophp | 2     | 30min      | 1466 paths / 101 uniq crashes              | 1685 paths / 101 uniq crashes / 14 train model |
-| swftophp | 3     | 30min      | 1414 paths / 95 uniq crashes               | 1719 paths / 115 uniq crashes / 24 train model |
-| swftophp | 4     | 60min      | 1841 paths / 125 uniq crashes              | 2581 paths / 182 uniq crashes / 49 train model |
+|          | index | time limit | afl                                        | afl-model-guide                                | afl-no-havoc | afl-model-guide-no-havoc |
+|----------|-------|------------|--------------------------------------------|------------------------------------------------|--------------|--------------------------|
+| swftophp | 1     | -          | 49min with 1713 paths and 132 uniq crashes | 37min with 1937 paths / 109 uniq crashes / ?   |              |                          |
+| swftophp | 2     | 30min      | 1466 paths / 101 uniq crashes              | 1685 paths / 101 uniq crashes / 14 train model |              |                          |
+| swftophp | 3     | 30min      | 1414 paths / 95 uniq crashes               | 1719 paths / 115 uniq crashes / 24 train model |              |                          |
+| swftophp | 4     | 60min      | 1841 paths / 125 uniq crashes              | 2581 paths / 182 uniq crashes / 49 train model |              |                          |
+| swftophp | 5     | 30min      |                                            |                                                | 895 / 99     | 1128 / 78 / 24           |
+
+|        | index          | time limit | afl     | afl-model-guide | afl-no-havoc | afl-model-guide-no-havoc |
+|--------|----------------|------------|---------|-----------------|--------------|--------------------------|
+| jasper | 1 / with kitty | 30min      | 562 / 0 | 572 / 0 / 0     |              |                          |
+| jasper | 2 / with kitty | 60min      | 593 / 0 |                 |              |                          |
+| jasper | 3 / with empty | 60min      | 600 / 0 |                 |              |                          |
