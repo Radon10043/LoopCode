@@ -17,7 +17,10 @@ export CC=$AFL/afl-clang-fast
 export CXX=$AFL/afl-clang-fast++
 export LDFLAGS=-lpthread
 export ADDITIONAL="-outdir=$TMP_DIR"
-
+# py module path
+export PY_PATH=/home/yagol/anaconda3/envs/LoopCode/bin/python
+export PY_MAIN_PATH=/home/yagol/LoopCode/machine_learning_module/src/main.py
+export PY_OUTPUT_DIR_PATH=$PWD/obj-loop/temp/py.out
 # 1st build
 cd obj-loop
 CFLAGS="$ADDITIONAL" CXXFLAGS="$ADDITIONAL" cmake ..
@@ -40,8 +43,9 @@ make clean all
 
 mkdir in
 #cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
-echo "" > in/in.jp2
+echo "" >in/in.jp2
 #非模型, 原版
-$AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+#$AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
 # 模型
-#$AFL/afl-fuzz -p -k 30 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+$PY_PATH $PY_MAIN_PATH >$PY_OUTPUT_DIR_PATH & # 后台运行py
+$AFL/afl-fuzz -p -k 60 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
