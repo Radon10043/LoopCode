@@ -2,6 +2,10 @@
 
 Loop code
 
+## 组件
+
+* [模型制导](./machine_learning_module)
+
 ### 各个被测项目所需要的依赖
 
 * UBUNTU18
