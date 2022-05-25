@@ -39,8 +39,9 @@ CFLAGS="$ADDITIONAL" CXXFLAGS="$ADDITIONAL" cmake ..
 make clean all
 
 mkdir in
-cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
+#cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
+echo "" > in/in.jp2
 #非模型, 原版
-$AFL/afl-fuzz -k 120 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+$AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
 # 模型
 #$AFL/afl-fuzz -p -k 30 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@

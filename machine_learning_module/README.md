@@ -17,11 +17,8 @@
 | swftophp | 4     | 60min      | 1841 paths / 125 uniq crashes              | 2581 paths / 182 uniq crashes / 49 train model |              |                          |
 | swftophp | 5     | 30min      |                                            |                                                | 895 / 99     | 1128 / 78 / 24           |
 
-
-
-
-
-|        | index | time limit | afl     | afl-model-guide | afl-no-havoc | afl-model-guide-no-havoc |
-|--------|-------|------------|---------|-----------------|--------------|--------------------------|
-| jasper | 1     | 30min      | 562 / 0 | 572 / 0 / 0     |              |                          |
-| jasper | 2     | 60min      | 593 / 0 |                 |              |                          |
+|        | index          | time limit | afl     | afl-model-guide | afl-no-havoc | afl-model-guide-no-havoc |
+|--------|----------------|------------|---------|-----------------|--------------|--------------------------|
+| jasper | 1 / with kitty | 30min      | 562 / 0 | 572 / 0 / 0     |              |                          |
+| jasper | 2 / with kitty | 60min      | 593 / 0 |                 |              |                          |
+| jasper | 3 / with empty | 60min      | 600 / 0 |                 |              |                          |
