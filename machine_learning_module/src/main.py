@@ -86,6 +86,7 @@ if __name__ == '__main__':
     print("start py module...ok")
     time_used = []
     if SOCKET_MODE:
+        train_times=0
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # internet udp模式
         address = ("127.0.0.1", PORT)
         server_socket.bind(address)  # 绑定开启socket端口
@@ -98,6 +99,7 @@ if __name__ == '__main__':
                 res = start_module(printer=False, test_case_path=data)
                 server_socket.sendto(res.encode("utf-8"), client)
                 time_used.append(time.time() - time1)
-                print(f"time used: {time_used[-1]}, total used: {sum(time_used)}")
+                train_times += 1
+                print(f"NO.{train_times}\n\tTIME USED: {time_used[-1]}\n\tTOTAL TIME USED: {sum(time_used)}\n========")
     else:  # 不启用SOCKET，单机测试
         start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")

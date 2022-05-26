@@ -12,13 +12,15 @@
 |          | index | time limit | afl                                        | afl-model-guide                                | afl-no-havoc | afl-model-guide-no-havoc |
 |----------|-------|------------|--------------------------------------------|------------------------------------------------|--------------|--------------------------|
 | swftophp | 1     | -          | 49min with 1713 paths and 132 uniq crashes | 37min with 1937 paths / 109 uniq crashes / ?   |              |                          |
-| swftophp | 2     | 30min      | 1466 paths / 101 uniq crashes              | 1685 paths / 101 uniq crashes / 14 train model |              |                          |
+| swftophp | 2     | 30min      | 1466 paths / 101 uniq crashes              | 1685 paths / 101 uniq crashes / 14 train model | 895 / 99     | 1128 / 78 / 24           |
 | swftophp | 3     | 30min      | 1414 paths / 95 uniq crashes               | 1719 paths / 115 uniq crashes / 24 train model |              |                          |
 | swftophp | 4     | 60min      | 1841 paths / 125 uniq crashes              | 2581 paths / 182 uniq crashes / 49 train model |              |                          |
-| swftophp | 5     | 30min      |                                            |                                                | 895 / 99     | 1128 / 78 / 24           |
+| swftophp | 5     | 60min      |                                            |                                                |              |                          |
 
 |        | index          | time limit | afl     | afl-model-guide | afl-no-havoc | afl-model-guide-no-havoc |
 |--------|----------------|------------|---------|-----------------|--------------|--------------------------|
 | jasper | 1 / with kitty | 30min      | 562 / 0 | 572 / 0 / 0     |              |                          |
-| jasper | 2 / with kitty | 60min      | 593 / 0 |                 |              |                          |
-| jasper | 3 / with empty | 60min      | 600 / 0 |                 |              |                          |
+| jasper | 2 / with kitty | 60min      | 593 / 0 | 702 / 0 / 0     |              |                          |
+| jasper | 3 / with empty | 60min      | 600 / 0 | 386 / 0 / 8     |              |                          |
+| japser | 4 / with empty | 60min      | 471 / 0 | 671 / 0 / 49    |              |                          |
+| jasper | 5 / with empty | 60min      |         | 405 / 0 / 12    |              |                          |
