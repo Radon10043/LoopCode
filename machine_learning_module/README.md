@@ -24,3 +24,4 @@
 | jasper | 3 / with empty | 60min      | 600 / 0 | 386 / 0 / 8     |              |                          |
 | japser | 4 / with empty | 60min      | 471 / 0 | 671 / 0 / 49    |              |                          |
 | jasper | 5 / with empty | 60min      |         | 405 / 0 / 12    |              |                          |
+| japser | 6 / with empty | 120min     |         | 429 / 0 /0      |              |                          |

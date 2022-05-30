@@ -18,6 +18,7 @@ from bb_list_getter import get_wanted_label_with_low_coverage
 from sklearn_test import train_sk_model
 from train_dataset_generator import read_afl_testcase
 from weight_diff_calculate import calculate_weight_diff_for_each_output
+import utils
 
 max_features = 100
 PORT = 12012  # UDP端口
@@ -86,17 +87,19 @@ if __name__ == '__main__':
     print("start py module...ok")
     time_used = []
     if SOCKET_MODE:
-        train_times=0
+        utils.kill_process_by_socket_port(PORT)
+        train_times = 0
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # internet udp模式
         address = ("127.0.0.1", PORT)
         server_socket.bind(address)  # 绑定开启socket端口
+        print("绑定SOCKET接口成功, 开始监听")
         while True:
             receive_data, client = server_socket.recvfrom(1024)
             data = receive_data.decode("utf-8")
             print(f"data: {data}")
             if data.startswith("/"):
                 time1 = time.time()
-                res = start_module(printer=False, test_case_path=data)
+                res = start_module(printer=False, test_case_path=data)  # 返回值是fusion的文件地址
                 server_socket.sendto(res.encode("utf-8"), client)
                 time_used.append(time.time() - time1)
                 train_times += 1

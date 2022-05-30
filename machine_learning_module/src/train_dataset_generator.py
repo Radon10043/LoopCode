@@ -91,7 +91,6 @@ def gen_train_dataset_with_bytes_array(max_feature_length=100):
 
 
 already_read_testcase = set()
-coverage_info = dict()
 
 
 def read_afl_testcase(max_feature_length=100, base_testcase_path=None):
@@ -107,7 +106,7 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None):
                 if file_name.endswith("_cov.txt"):
                     coverage_path = os.path.join(root, file_name)
                     testcase_bin_path = os.path.join(root, file_name.replace("_cov.txt", ""))
-                    if testcase_bin_path in already_read_testcase:
+                    if testcase_bin_path in already_read_testcase:  # 过滤已经训练过的测试用例
                         continue
                     else:
                         already_read_testcase.add(testcase_bin_path)
@@ -130,10 +129,6 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None):
                             for i, line in enumerate(lines):  # 只读取前bb_size行
                                 line = int(line)
                                 temp.append(line)
-                                if line == 1:  # 覆盖了第i个基本快
-                                    coverage_bb_times = coverage_info.get(i, 0)
-                                    coverage_bb_times += 1  # 更新覆盖情况统计
-                                    coverage_info[i] = coverage_bb_times
                                 if line == "":  # 读取到文件的结尾了
                                     break
                             assert len(temp) == len(lines)
