@@ -5,6 +5,7 @@ Q. 多层感知机==全连接神经网络?
 A. https://datascience.stackexchange.com/questions/91123/is-a-multi-layer-perceptron-exactly-the-same-as-a-simple-fully-connected-neural
 
 """
+import loguru
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
@@ -30,16 +31,16 @@ def train_sk_model(x_data, y_data, is_test: bool = False, partial_fit=False):
     :return:
     """
     if partial_fit:
-        print(f"partial_fit...x_data size is {x_data.shape}")
+        loguru.logger.info(f"partial_fit...x_data size is {x_data.shape}")
         clf.partial_fit(x_data, y_data)
     else:
         if is_test:
             x_train, x_test, y_train, y_test = train_test_split(x_data, y_data)
-            print("training...")
+            loguru.logger.info("training...")
             clf.fit(x_train, y_train)
             y_pred = clf.predict(x_test)
-            print(f"model f1 score is: {f1_score(y_test, y_pred, average='samples')}")
+            loguru.logger.debug(f"model f1 score is: {f1_score(y_test, y_pred, average='samples')}")
         else:
-            print("training...")
+            loguru.logger.info("training...")
             clf.fit(x_data, y_data)
     return clf

@@ -1,5 +1,6 @@
 import os
 
+import loguru
 import numpy
 from scipy.spatial.distance import cdist
 
@@ -36,7 +37,7 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     :param summaries_path:
     :return:
     """
-    print("hidden_layer_sizes:", hidden_layer_sizes)
+    loguru.logger.debug(f"hidden_layer_sizes: {hidden_layer_sizes}")
     summaries = []
     if top_k is None:
         top_k = feature_sizes
@@ -55,7 +56,7 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
             summary.append((j, numpy.triu(c, k=0).sum()))
         summary.sort(key=lambda x: x[1], reverse=True)  # 降序排列，最前面的是最具有影响力的
         if printer:
-            print(summary[:top_k])
+            loguru.logger.debug(summary[:top_k])
         summaries.append(summary[:top_k])
         if not os.path.exists(summaries_path):
             os.mkdir(summaries_path)
