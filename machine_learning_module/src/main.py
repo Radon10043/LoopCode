@@ -6,6 +6,8 @@
 
 import os
 import sys
+
+import loguru
 import numpy
 import socket
 import time
@@ -25,6 +27,7 @@ PORT = 12012  # UDP端口
 SOCKET_MODE = True  # 是否启用SOCKET模式，不启用就是单机测试模式
 hidden_layer_sizes = (3, 3, 3,)  # 隐藏层
 py_output_dir_name = 'py_out'
+total_train_testcase_size = 0
 
 
 def test_case_type_1():
@@ -47,6 +50,7 @@ def test_case_type_2():
     return train_dataset_generator.gen_train_dataset_with_bytes_array(max_feature_length=max_features)
 
 
+@loguru.logger.catch()
 def start_module(printer=True, test_case_path=None):
     x_data, y_data, is_first_read = read_afl_testcase(
         max_feature_length=max_features,
@@ -56,7 +60,9 @@ def start_module(printer=True, test_case_path=None):
     )
     x_data, y_data = numpy.array(x_data), numpy.array(y_data)
     assert x_data.shape[0] == y_data.shape[0]
-    print(f"total train data size: {x_data.shape[0]}")
+    loguru.logger.debug(f"total train data size: {x_data.shape[0]}")
+    global total_train_testcase_size
+    total_train_testcase_size += x_data.shape[0]
     feature_size = x_data.shape[1]
     label_size = y_data.shape[1]
     model = train_sk_model(
@@ -65,7 +71,7 @@ def start_module(printer=True, test_case_path=None):
         is_test=True,  # 是否切割数据集，用于输出f1值
         partial_fit=not is_first_read
     )
-    bb_list_wanted = get_wanted_label_with_low_coverage(y_data, size=2)  # 根据覆盖情况，获得最差的size个基本块的序号
+    bb_list_wanted = get_wanted_label_with_low_coverage(y_data, size=10)  # 根据覆盖情况，获得最差的size个基本块的序号
     return calculate_weight_diff_for_each_output(
         feature_size,  # 特征的长度
         label_size,  # 标签的长度
@@ -80,29 +86,34 @@ def start_module(printer=True, test_case_path=None):
 
 """
 命令行示例
-python main.py
-       0
+python main.py where_is_log
+       0           1
 """
 if __name__ == '__main__':
-    print("start py module...ok")
+    loguru.logger.info("start py module...ok")
     time_used = []
     if SOCKET_MODE:
+        loguru.logger.remove()
+        loguru.logger.add(sys.argv[1])
         utils.kill_process_by_socket_port(PORT)
         train_times = 0
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # internet udp模式
         address = ("127.0.0.1", PORT)
         server_socket.bind(address)  # 绑定开启socket端口
-        print("绑定SOCKET接口成功, 开始监听")
+        loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
         while True:
             receive_data, client = server_socket.recvfrom(1024)
             data = receive_data.decode("utf-8")
-            print(f"data: {data}")
+            loguru.logger.info(f"receive data: {data}")
             if data.startswith("/"):
                 time1 = time.time()
                 res = start_module(printer=False, test_case_path=data)  # 返回值是fusion的文件地址
                 server_socket.sendto(res.encode("utf-8"), client)
                 time_used.append(time.time() - time1)
                 train_times += 1
-                print(f"NO.{train_times}\n\tTIME USED: {time_used[-1]}\n\tTOTAL TIME USED: {sum(time_used)}\n========")
+                loguru.logger.info(
+                    f"NO.{train_times}\n\tTIME USED: {time_used[-1]}\n"
+                    f"\tTOTAL TIME USED: {sum(time_used)}\n"
+                    f"\tTOTAL TRAIN TESTCASE SIZE: {total_train_testcase_size}========")
     else:  # 不启用SOCKET，单机测试
         start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")

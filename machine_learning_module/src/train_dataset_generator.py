@@ -6,6 +6,7 @@ import os
 import shutil
 from collections import Counter
 
+import loguru
 import pandas as pd
 
 import bytes_converter
@@ -106,12 +107,14 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None):
                 if file_name.endswith("_cov.txt"):
                     coverage_path = os.path.join(root, file_name)
                     testcase_bin_path = os.path.join(root, file_name.replace("_cov.txt", ""))
-                    if testcase_bin_path in already_read_testcase:  # 过滤已经训练过的测试用例
-                        continue
-                    else:
-                        already_read_testcase.add(testcase_bin_path)
+                    if not root.endswith("ya"):  # ya文件夹不可能存在重复读取, 因为数据读取完都被清空了
+                        if testcase_bin_path in already_read_testcase:  # 过滤已经训练过的测试用例
+                            continue
+                        else:
+                            already_read_testcase.add(testcase_bin_path)
                     if not os.path.exists(testcase_bin_path):
-                        print("ERROR: NO TESTCASE BIN FILE, BUT HAVE COVERAGE INFO", testcase_bin_path)  # 没有对应的测试用例
+                        loguru.logger.error("ERROR: NO TESTCASE BIN FILE, BUT HAVE COVERAGE INFO",
+                                            testcase_bin_path)  # 没有对应的测试用例
                     else:
                         with open(testcase_bin_path, "r", encoding="ISO-8859-15") as f:
                             t = f.read()
@@ -135,7 +138,9 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None):
                             y_data.append(temp)
                     if root.endswith("ya"):  # 清空ya文件夹的测试用例，因为这些测试用例只提供模型训练数据，没有其他作用
                         os.remove(coverage_path)
+                        loguru.logger.debug(f"测试用例覆盖信息被删除: {coverage_path}")
                         os.remove(testcase_bin_path)
-    print("longest_testcase_length:", longest_testcase_length)
+                        loguru.logger.debug(f"测试用例被删除: {testcase_bin_path}")
+    loguru.logger.debug(f"该批次最长测试用例长度为: {longest_testcase_length}")
 
     return x_data, y_data, is_first_read
