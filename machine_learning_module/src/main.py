@@ -11,6 +11,7 @@ import loguru
 import numpy
 import socket
 import time
+import argparse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # 将项目添加到PATH里
 sys.path.append(BASE_DIR)
@@ -84,6 +85,13 @@ def start_module(printer=True, test_case_path=None):
     )
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--log-path", help="日志文件保存位置", type=str)
+    parser.add_argument("--skip-log-stdout", help="阻止通过stdout输出日志信息", action="store_true")
+    return parser.parse_args()
+
+
 """
 命令行示例
 python main.py where_is_log
@@ -93,8 +101,10 @@ if __name__ == '__main__':
     loguru.logger.info("start py module...ok")
     time_used = []
     if SOCKET_MODE:
-        loguru.logger.remove()
-        loguru.logger.add(sys.argv[1])
+        args = get_args()
+        if args.skip_log_stdout:
+            loguru.logger.remove()
+        loguru.logger.add(args.log_path)
         utils.kill_process_by_socket_port(PORT)
         train_times = 0
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # internet udp模式
@@ -112,8 +122,8 @@ if __name__ == '__main__':
                 time_used.append(time.time() - time1)
                 train_times += 1
                 loguru.logger.info(
-                    f"NO.{train_times}\n\tTIME USED: {time_used[-1]}\n"
+                    f"\nNO.{train_times}\n\tTIME USED: {time_used[-1]}\n"
                     f"\tTOTAL TIME USED: {sum(time_used)}\n"
-                    f"\tTOTAL TRAIN TESTCASE SIZE: {total_train_testcase_size}========")
+                    f"\tTOTAL TRAIN TESTCASE SIZE: {total_train_testcase_size}\n========")
     else:  # 不启用SOCKET，单机测试
         start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")

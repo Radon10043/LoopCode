@@ -45,8 +45,10 @@ make clean all
 mkdir in
 #cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
 echo "" >in/in.jp2
+mkdir in_afl_origin
+echo "" >in_afl_origin/in.jp2
 #非模型, 原版
-#$AFL/afl-fuzz -k 180 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
-# 模型
-$PY_PATH -u $PY_MAIN_PATH $PY_OUTPUT_DIR_PATH & # 后台运行py
-$AFL/afl-fuzz -p -k 180 -l $line -m none -i in -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+gnome-terminal -- $AFL/afl-fuzz -k 240 -l $line -m none -i in_afl_origin -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out_afl_origin /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out_afl_origin.jpg --input @@ &
+## 模型
+gnome-terminal -- $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH & # 后台运行py
+gnome-terminal -- $AFL/afl-fuzz -p -k 240 -l $line -m none -i in -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@ &

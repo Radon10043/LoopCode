@@ -4347,10 +4347,17 @@ static void show_stats(void) {
   banner_len = (crash_mode ? 24 : 22) + strlen(VERSION) + strlen(use_banner);
   banner_pad = (80 - banner_len) / 2;
   memset(tmp, ' ', banner_pad);
-
-  sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
-          " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" : 
+  if(enable_py){
+      sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
+          " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" :
+          cYEL "american fuzzy lop (Radon's CFL) (Model)", use_banner);
+  }
+  else{
+      sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
+          " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" :
           cYEL "american fuzzy lop (Radon's CFL)", use_banner);
+  }
+
 
   SAYF("\n%s\n\n", tmp);
 
