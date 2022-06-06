@@ -94,8 +94,8 @@ def get_args():
 
 """
 命令行示例
-python main.py where_is_log
-       0           1
+python main.py --log-path where_is_log --skip-log-stdout
+       0           
 """
 if __name__ == '__main__':
     loguru.logger.info("start py module...ok")

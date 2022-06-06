@@ -301,6 +301,7 @@ static u8 enable_py   = 0;            /* Radon: Enable py module?         */
 static u32 max_line   = 65536 << 3;   /* Radon: Max line of cov file      */
 
 static int yagol_testcase_counter = 0;    /* Yagol: for count testcase yagol create, used for testcase filename. */
+static int yagol_testcase_more_counter=0; /* Yagol: 超过一定数量后，剩下的测试用例根据概率保存，这个全局变量统计概率保存的测试用例序号 */
 static int fuzz_loop_round_counter = 0;   /* Yagol: for count fuzz main loop, used for testcase filename. */
 static u64 last_py_train_testcase = 0;    /* Yagol: for count last py train testcase */
 static float prob_mapper[100] = {0};      /* Yagol: for mutate probability mapper */
@@ -3317,7 +3318,10 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
   u8  keeping = 0, res;
 
   /* mark:yagol:start */
-  if (yagol_testcase_counter <= 100 && fuzz_loop_round_counter <= 50){
+  int max_prob_save=10000;//最大概率
+  int threshold_prob_save=1;//能够被保存的测试用例，需要低于这个阈值
+  int random_prob_save=0;//随机概率
+  if (yagol_testcase_counter <= 100){
     u8 *ya_fn = "";
     s32 ya_fd;
     ya_fn = alloc_printf("%s/ya/id:%d_%d", out_dir, fuzz_loop_round_counter, yagol_testcase_counter); // like: ya/id:1_1
@@ -3369,6 +3373,67 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     yagol_testcase_counter++;
 
+  }else{
+    //已经保存了100个了，其他情况下，根据概率决定是否保存
+    if(yagol_testcase_more_counter<=2147483646 && real_time_testcase_counter<=2147483646){
+    // 最大极限是保存2^32(2147483647)次方-1个，否则用于标记序号的yagol_testcase_more_counter会越界
+        random_prob_save=UR(max_prob_save);
+        if (random_prob_save<=threshold_prob_save){
+            //保存这个测试用例
+            u8 *ya_more_fn="";
+            s32 ya_more_fd;
+            ya_more_fn= alloc_printf("%s/ya/id:%d_more_%d", out_dir, fuzz_loop_round_counter, yagol_testcase_more_counter);
+            ya_more_fd=open(ya_more_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+            if(ya_more_fd<0) PFATAL("Unable to create '%s'", ya_more_fn);
+            ck_write(ya_more_fd, mem, len, ya_more_fn);
+            close(ya_more_fd);
+
+            /* Radon: 保存每个测试用例的覆盖信息 */
+            u8* cov_more_fn = alloc_printf("%s_cov.txt", ya_more_fn);
+            s32 cov_more_fd = open(cov_more_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+            FILE* cov_more_f;
+
+            if (cov_more_fd < 0) PFATAL("Unable to create '%s'", cov_more_fn);
+
+            ck_free(cov_more_fn);
+            real_time_testcase_counter++;
+
+            cov_more_f = fdopen(cov_more_fd, "w");
+
+            if (!cov_more_f) PFATAL("fdopen() failed");
+
+            /* Radon: I dont think it's a good way. */
+
+            u8 cov_more_finish = 0;
+
+            for (u32 offset = 0; offset < 65536; offset++) {
+
+              for (u8 value = 128, i = 0; i < 8; i++) {
+
+                u8* is_more_cov = (u8*)(trace_bits + MAP_SIZE + offset);
+                fprintf(cov_more_f, "%u\n", (*is_more_cov & (value >> i)) >> (7 - i));
+
+                if ((offset << 3) + i + 1>= max_line) {
+                  cov_more_finish = 1;
+                  break;
+                }
+
+              }
+
+              if (cov_more_finish) break;
+
+            }
+
+            fclose(cov_more_f);
+            /* ***************************** */
+
+            ck_free(ya_more_fn);
+
+            yagol_testcase_more_counter++;
+
+
+        }
+    }
   }
   /* mark:yagol:end */
 
@@ -8665,6 +8730,7 @@ int main(int argc, char** argv) {
       queue_cycle++;
       fuzz_loop_round_counter++;// mark:yagol
       yagol_testcase_counter = 0;// mark:yagol
+      yagol_testcase_more_counter=0; // mark:yagol
       current_entry     = 0;
       cur_skipped_paths = 0;
       queue_cur         = queue;
@@ -8704,9 +8770,9 @@ int main(int argc, char** argv) {
     {
       if (last_path_time != 0) //运行过一次,或者至少发现了一个新路径
       {
-        if (get_cur_time() - last_path_time >= 1000 * 10) // 10秒没有覆盖新路径，执行py，1000 milliseconds = 1 second
+        if (get_cur_time() - last_path_time >= 1000 * 60 * 20) // 20分钟没有覆盖新路径，执行py
         {
-          if (total_execs >= MIN_TESTCASE_SEND_TO_PY && last_py_train_testcase != real_time_testcase_counter) //测试用例至少MIN个，并且测试用例发生了变化，也就是生成了新的测试用例
+          if (total_execs >= MIN_TESTCASE_SEND_TO_PY && last_py_train_testcase != real_time_testcase_counter) //测试用例至少MIN个(但不一定是这批生成的，而是输送给py的总体个数)，并且测试用例发生了变化，也就是生成了新的测试用例
           {
             last_py_train_testcase = real_time_testcase_counter; //更新测试用例数量
             if (-1 == start_py_module())
