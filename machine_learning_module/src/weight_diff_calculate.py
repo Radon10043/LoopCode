@@ -9,14 +9,16 @@ def fusion(summaries, summaries_path):
     indexes_and_probabilities = dict()
     for summary in summaries:
         for index, probability in summary:
-            if index not in indexes_and_probabilities:
-                indexes_and_probabilities[index] = probability
-            else:
-                indexes_and_probabilities[index] += probability
+            temp_probability = indexes_and_probabilities.get(index, 0)
+            temp_probability += probability
+            indexes_and_probabilities[index] = temp_probability
+    indexes_and_probabilities = sorted(indexes_and_probabilities.items(), key=lambda x: x[1])
     file_path = f"{summaries_path}/fusion.csv"
     with open(file_path, "w") as f:
-        for index, probability in indexes_and_probabilities.items():
-            f.write(str(index) + "," + str(probability) + "\n")
+        prob_start = 1
+        for index, probability in indexes_and_probabilities:
+            f.write(str(index) + "," + str(prob_start) + "\n")
+            prob_start += 1
     return file_path
 
 
@@ -37,6 +39,8 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     :param summaries_path:
     :return:
     """
+    if not os.path.exists(summaries_path):
+        os.mkdir(summaries_path)
     loguru.logger.debug(f"hidden_layer_sizes: {hidden_layer_sizes}")
     summaries = []
     if top_k is None:
@@ -58,11 +62,10 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
         if printer:
             loguru.logger.debug(summary[:top_k])
         summaries.append(summary[:top_k])
-        if not os.path.exists(summaries_path):
-            os.mkdir(summaries_path)
-        with open(f"{summaries_path}/{str(i)}.csv", "w") as f:
-            for k in range(top_k):
-                f.write(str(summary[k][0]) + "," + str(summary[k][1]) + "\n")
+        if printer:
+            with open(f"{summaries_path}/{str(i)}.csv", "w") as f:
+                for k in range(top_k):
+                    f.write(str(summary[k][0]) + "," + str(summary[k][1]) + "\n")
     return fusion(summaries, summaries_path)
 
 

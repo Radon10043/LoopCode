@@ -305,11 +305,12 @@ static int yagol_testcase_more_counter=0; /* Yagol: 超过一定数量后，剩�
 static int fuzz_loop_round_counter = 0;   /* Yagol: for count fuzz main loop, used for testcase filename. */
 static u64 last_py_train_testcase = 0;    /* Yagol: for count last py train testcase */
 static float prob_mapper[100] = {0};      /* Yagol: for mutate probability mapper */
-static float sum_prob = 0;                /* Yagol: for mutate probability sum */
+static int sum_prob = 0;                /* Yagol: for mutate probability sum */
 static u8 enable_base_prob = 0;           /* Yagol: can enable mutate base prob? */
 static int MAX_TESTCASE_SKIP_SIZE = 100;  /* Yagol: 用于py模块训练的最大测试用例大小，决定了在skip的时候最大值 */
 static int MIN_TESTCASE_SEND_TO_PY = 100; /* Yagol: 最低给py发送的测试用例数量，越多，py训练的越充分*/
 static int real_time_testcase_counter=0; /* Yagol:实时记录存在cov的测试用例数量*/
+static int endurance_time = 10; /* 容忍afl多少分钟没有发现新的路径 */
 /* Interesting values, as per config.h */
 
 static s8  interesting_8[]  = { INTERESTING_8 };
@@ -375,8 +376,10 @@ int update_prob_mapper(char *fusion_path)
     char *split = strtok(buf, ",");  //根据逗号分割
     int temp = atoi(split);          //前面的是int，是字节序号
     split = strtok(NULL, ",");       //再分割，这是找到了第二个
-    prob_mapper[temp] = atof(split); //第二个是权重，是float
-    sum_prob += atof(split);         //权重加和，这是用来生成随机权重的
+    prob_mapper[temp] = atoi(split); //第二个是权重，是int
+    if(prob_mapper[temp] > sum_prob){
+        sum_prob=prob_mapper[temp];
+    }
   }
   fclose(in); //关闭文件
   return 0;
@@ -5360,6 +5363,24 @@ static u8 could_be_interest(u32 old_val, u32 new_val, u8 blen, u8 check_le) {
 
 }
 
+int is_select_base_prob(s32 stage_cur_copy){
+    if(enable_base_prob==1){
+        s32 temp_byte_index_copy=stage_cur_copy >> 3;
+        if (temp_byte_index_copy < MAX_TESTCASE_SKIP_SIZE){
+            if(UR((int)sum_prob)<=prob_mapper[temp_byte_index_copy]){
+                printf("skip!%d",temp_byte_index_copy);
+                return 1;
+            }else{
+                return 0;
+            }
+        }else{
+            return 1;
+        }
+    }
+    else{
+        return 1;
+    }
+}
 
 /* Take the current entry from the queue, fuzz it for a while. This
    function is a tad too long... returns 0 if fuzzed successfully, 1 if
@@ -5537,9 +5558,9 @@ static u8 fuzz_one(char** argv) {
   } while (0)
 
   /* Yagol: init */
-  s32 temp_byte_index = 0;          //临时计算位所在的字节位置，>>3
-  int random_prob = 0;              //这次的随机概率阈值
-  float cumulative_probability = 0; //累加阈值，用于判断是否选择
+//  s32 temp_byte_index = 0;          //临时计算位所在的字节位置，>>3
+//  int random_prob = 0;              //这次的随机概率阈值
+//  float cumulative_probability = 0; //累加阈值，用于判断是否选择
   /* Radon: myflip, 只翻转第favored_byte个字节的内容 */
   /* TODO: 现在只是翻转某一个字节并保存了下来, 后续需要搞清楚要怎么变异 */
 
@@ -5593,23 +5614,14 @@ static u8 fuzz_one(char** argv) {
   orig_hit_cnt = queued_paths + unique_crashes;
 
   prev_cksum = queue_cur->exec_cksum;
-  if (enable_base_prob == 1) //训练过后模型，才能得知最大概率
-    random_prob = UR((int)sum_prob);
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1) //训练过后模型，才能得知最大概率
+//    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-    if (enable_base_prob == 1) //启动了py模式
-    {
-      temp_byte_index = stage_cur >> 3;             //当前位所在的字节序号
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE) //如果这个字节所在的位置在前100个，100是个参数，与py模式里的模型特征数对应，越大训练越慢
-      {
-        cumulative_probability += prob_mapper[temp_byte_index]; //累加当前概率
-        if (cumulative_probability < random_prob)               //累加概率小于概率阈值，那不行，跳过这个字节
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = stage_cur >> 3;
 
@@ -5700,23 +5712,14 @@ static u8 fuzz_one(char** argv) {
   stage_max   = (len << 3) - 1;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)  //训练过后模型，才能得知最大概率
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)  //训练过后模型，才能得知最大概率
+//    random_prob = UR((int)sum_prob);
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = stage_cur >> 3;
 
@@ -5743,23 +5746,14 @@ static u8 fuzz_one(char** argv) {
   stage_max   = (len << 3) - 3;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
 
     stage_cur_byte = stage_cur >> 3;
@@ -5814,23 +5808,14 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = stage_cur;
 
@@ -5900,23 +5885,14 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len - 1;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (i = 0; i < len - 1; i++)
   {
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     /* Let's consult the effector map... */
 
@@ -5952,24 +5928,14 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len - 3;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (i = 0; i < len - 3; i++)
   {
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = i;
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     /* Let's consult the effector map... */
     if (!eff_map[EFF_APOS(i)] && !eff_map[EFF_APOS(i + 1)] &&
@@ -6012,10 +5978,10 @@ skip_bitflip:
   stage_val_type = STAGE_VAL_LE;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (i = 0; i < len; i++)
   {
 
@@ -6028,18 +5994,8 @@ skip_bitflip:
       stage_max -= 2 * ARITH_MAX;
       continue;
     }
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = i;
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = i;
 
@@ -6094,10 +6050,10 @@ skip_bitflip:
   stage_max   = 4 * (len - 1) * ARITH_MAX;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (i = 0; i < len - 1; i++)
   {
 
@@ -6109,18 +6065,8 @@ skip_bitflip:
       stage_max -= 4 * ARITH_MAX;
       continue;
     }
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = i;
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = i;
 
@@ -6204,10 +6150,10 @@ skip_bitflip:
   stage_max   = 4 * (len - 3) * ARITH_MAX;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (i = 0; i < len - 3; i++)
   {
 
@@ -6220,18 +6166,8 @@ skip_bitflip:
       stage_max -= 4 * ARITH_MAX;
       continue;
     }
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = i;
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = i;
 
@@ -6316,10 +6252,10 @@ skip_arith:
   stage_val_type = STAGE_VAL_LE;
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   /* Setting 8-bit integers. */
 
   for (i = 0; i < len; i++) {
@@ -6332,18 +6268,8 @@ skip_arith:
       stage_max -= sizeof(interesting_8);
       continue;
     }
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = i;
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = i;
 
@@ -6384,10 +6310,10 @@ skip_arith:
   stage_max   = 2 * (len - 1) * (sizeof(interesting_16) >> 1);
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (i = 0; i < len - 1; i++)
   {
 
@@ -6399,18 +6325,8 @@ skip_arith:
       stage_max -= sizeof(interesting_16);
       continue;
     }
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = i;
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = i;
 
@@ -6468,10 +6384,10 @@ skip_arith:
   stage_max   = 2 * (len - 3) * (sizeof(interesting_32) >> 2);
 
   orig_hit_cnt = new_hit_cnt;
-  cumulative_probability = 0; //重置累加阈值
-  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-  if (enable_base_prob == 1)
-    random_prob = UR((int)sum_prob);
+//  cumulative_probability = 0; //重置累加阈值
+//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+//  if (enable_base_prob == 1)
+//    random_prob = UR((int)sum_prob);
   for (i = 0; i < len - 3; i++)
   {
 
@@ -6484,18 +6400,8 @@ skip_arith:
       stage_max -= sizeof(interesting_32) >> 1;
       continue;
     }
-    if (enable_base_prob == 1)
-    {
-      temp_byte_index = i;
-      temp_byte_index = stage_cur >> 3;
-      if (temp_byte_index < MAX_TESTCASE_SKIP_SIZE)
-      {
-        cumulative_probability += prob_mapper[temp_byte_index];
-        if (cumulative_probability < random_prob)
-        {
-          continue;
-        }
-      }
+    if (is_select_base_prob(stage_cur) == 0){
+        continue;
     }
     stage_cur_byte = i;
 
@@ -8407,7 +8313,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:e:")) > 0)
 
     switch (opt) {
 
@@ -8610,6 +8516,9 @@ int main(int argc, char** argv) {
           FATAL("Bad syntax used for -l");
 
         break;
+      case 'e':/* 容忍afl多少分钟没有覆盖新的路径 */
+        if (sscanf(optarg, "%u", &endurance_time) < 1) FATAL("Bad syntax used for -e");
+        break;
 
       default:
 
@@ -8770,7 +8679,7 @@ int main(int argc, char** argv) {
     {
       if (last_path_time != 0) //运行过一次,或者至少发现了一个新路径
       {
-        if (get_cur_time() - last_path_time >= 1000 * 60 * 20) // 20分钟没有覆盖新路径，执行py
+        if (get_cur_time() - last_path_time >= 1000 * endurance_time) // endurance_time分钟没有覆盖新路径，执行py
         {
           if (total_execs >= MIN_TESTCASE_SEND_TO_PY && last_py_train_testcase != real_time_testcase_counter) //测试用例至少MIN个(但不一定是这批生成的，而是输送给py的总体个数)，并且测试用例发生了变化，也就是生成了新的测试用例
           {
