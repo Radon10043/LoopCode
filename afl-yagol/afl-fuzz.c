@@ -312,6 +312,7 @@ static int MIN_TESTCASE_SEND_TO_PY = 100; /* Yagol: 最低给py发送的测试�
 static u64 real_time_testcase_counter=0; /* Yagol:实时记录存在cov的测试用例数量*/
 static int endurance_time = 10; /* 容忍afl多少分钟没有发现新的路径 */
 static u64 model_skip_byte_size=0; /* Yagol:被模型跳过的字节总数*/
+static u64 model_choose_byte_size=0; /* lowry:被模型选中的字节总数*/
 /* Interesting values, as per config.h */
 
 static s8  interesting_8[]  = { INTERESTING_8 };
@@ -4717,6 +4718,7 @@ static void show_stats(void) {
   SAYF(bVR bH cCYA bSTOP " Model Infos " bSTG bH10 bH bHT bH10 bH5 bHB bH bSTOP bHB bH bSTOP bH5
        bH5 bHB bH bSTOP cCYA " Other Infos " bSTG bH5 bH2 bH bVL "\n");
   SAYF(bV bSTOP "   skip byte : " cRST "%-37s " "\n",DI(model_skip_byte_size));
+  SAYF(bV bSTOP " choose byte : " cRST "%-37s " "\n",DI(model_choose_byte_size));
   /* Provide some CPU utilization stats. */
 
   if (cpu_core_count) {
@@ -5367,12 +5369,14 @@ int is_select_base_prob(s32 stage_cur_copy){
         s32 temp_byte_index_copy=stage_cur_copy >> 3;
         if (temp_byte_index_copy < MAX_TESTCASE_SKIP_SIZE){
             if(UR((int)sum_prob)<=prob_mapper[temp_byte_index_copy]){
-                model_skip_byte_size++;
+                model_choose_byte_size++;
                 return 1;
             }else{
+                model_skip_byte_size++;
                 return 0;
             }
         }else{
+            model_choose_byte_size++;
             return 1;
         }
     }
