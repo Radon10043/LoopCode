@@ -5366,17 +5366,17 @@ int is_select_base_prob(s32 stage_cur_copy){
     if(enable_base_prob==1){
         s32 temp_byte_index_copy=stage_cur_copy >> 3;
         if (temp_byte_index_copy < MAX_TESTCASE_SKIP_SIZE){
-            if(UR((int)sum_prob)<=prob_mapper[temp_byte_index_copy]){
-                model_skip_byte_size++;
+            if(UR((int)sum_prob)<=prob_mapper[temp_byte_index_copy]){//如果随机值没有概率值大，那么就选择他
                 return 1;
-            }else{
+            }else{//随机值比概率值还要大，**，跳过你
+                model_skip_byte_size++;
                 return 0;
             }
-        }else{
+        }else{//这个字节不在我的计算范围内，也就是模型没有学习到这个字节,那么这个字节需要被选择
             return 1;
         }
     }
-    else{
+    else{//没有启动py，所有的字节都要被选择
         return 1;
     }
 }
