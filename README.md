@@ -5,11 +5,12 @@ Loop code
 ## 组件
 
 * [模型制导](./machine_learning_module)
-  * [实验记录](./machine_learning_module/README.md)
+    * [实验记录](./machine_learning_module/README.md)
 
 ### 各个被测项目所需要的依赖
 
 * UBUNTU 18
+    * sudo apt-get install net-tools
 
 * JASPER 3.0.3
     * sudo apt-get install doxygen
