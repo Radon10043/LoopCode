@@ -14,7 +14,7 @@ export AFL=/home/yagol/LoopCode/afl-yagol
 # Py path
 export PY_PATH=/home/yagol/anaconda3/envs/LoopCode/bin/python
 export PY_MAIN_PATH=/home/yagol/LoopCode/machine_learning_module/src/main.py
-export PY_OUTPUT_DIR_PATH=$PWD/obj-loop/temp/py.log
+export PY_OUTPUT_DIR_PATH=$PWD/obj-loop/temp/
 export SUBJECT=$PWD
 export TMP_DIR=$PWD/obj-loop/temp
 export CC=$AFL/afl-clang-fast
@@ -48,4 +48,4 @@ wget -P in http://condor.depaul.edu/sjost/hci430/flash-examples/swf/bumble-bee1.
 # $AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
 # 模型
 $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout & # 后台运行py
-$AFL/afl-fuzz -p -k 30 -l $line -e 1 -m none -i in -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/util/swftophp @@
+$AFL/afl-fuzz -p -k 30 -l $line -e 10 -m none -i in -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/util/swftophp @@
