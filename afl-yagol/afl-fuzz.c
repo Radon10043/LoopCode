@@ -313,6 +313,7 @@ static u64 real_time_testcase_counter=0; /* Yagol:实时记录存在cov的测试
 static int endurance_time = 10; /* 容忍afl多少分钟没有发现新的路径 */
 static u64 model_skip_byte_size=0; /* Yagol:被模型跳过的字节总数*/
 static u64 model_choose_byte_size=0; /* lowry:被模型选中的字节总数*/
+static u8 enable_havoc=0;
 /* Interesting values, as per config.h */
 
 static s8  interesting_8[]  = { INTERESTING_8 };
@@ -6629,6 +6630,10 @@ skip_extras:
   /****************
    * RANDOM HAVOC *
    ****************/
+if(!enable_havoc){
+goto abandon_entry;
+
+}
 
 havoc_stage:
 
@@ -8316,7 +8321,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:e:")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:e:h")) > 0)
 
     switch (opt) {
 
@@ -8521,6 +8526,9 @@ int main(int argc, char** argv) {
         break;
       case 'e':/* 容忍afl多少分钟没有覆盖新的路径 */
         if (sscanf(optarg, "%u", &endurance_time) < 1) FATAL("Bad syntax used for -e");
+        break;
+      case 'h':
+        enable_havoc=1;
         break;
 
       default:
