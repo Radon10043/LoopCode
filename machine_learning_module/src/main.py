@@ -104,7 +104,9 @@ if __name__ == '__main__':
         args = get_args()
         if args.skip_log_stdout:
             loguru.logger.remove()
-        loguru.logger.add(args.log_path)
+        timestamp = time.time()
+        log_path = os.path.join(args.log_path, f"{timestamp}_py.log")
+        loguru.logger.add(log_path)
         utils.kill_process_by_socket_port(PORT)
         train_times = 0
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # internet udp模式
