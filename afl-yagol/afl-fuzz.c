@@ -6645,10 +6645,6 @@ skip_extras:
   /****************
    * RANDOM HAVOC *
    ****************/
-if(!enable_havoc){
-goto abandon_entry;
-
-}
 
 havoc_stage:
 
@@ -8336,7 +8332,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:e:h")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:e:")) > 0)
 
     switch (opt) {
 
@@ -8541,9 +8537,6 @@ int main(int argc, char** argv) {
         break;
       case 'e':/* 容忍afl多少分钟没有覆盖新的路径 */
         if (sscanf(optarg, "%u", &endurance_time) < 1) FATAL("Bad syntax used for -e");
-        break;
-      case 'h':
-        enable_havoc=1;
         break;
 
       default:
