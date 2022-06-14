@@ -300,20 +300,20 @@ static u8 save_myflip = 1;            /* Radon: Save my flip file?        */
 static u8 enable_py   = 0;            /* Radon: Enable py module?         */
 static u32 max_line   = 65536 << 3;   /* Radon: Max line of cov file      */
 
-static int yagol_testcase_counter = 0;    /* Yagol: for count testcase yagol create, used for testcase filename. */
-static u64 yagol_testcase_more_counter=0; /* Yagol: 超过一定数量后，剩下的测试用例根据概率保存，这个全局变量统计概率保存的测试用例序号 */
-static int fuzz_loop_round_counter = 0;   /* Yagol: for count fuzz main loop, used for testcase filename. */
-static u64 last_py_train_testcase = 0;    /* Yagol: for count last py train testcase */
-static int prob_mapper[100] = {0};      /* Yagol: for mutate probability mapper */
-static int sum_prob = 0;                /* Yagol: for mutate probability sum */
-static u8 enable_base_prob = 0;           /* Yagol: can enable mutate base prob? */
-static int MAX_TESTCASE_SKIP_SIZE = 100;  /* Yagol: 用于py模块训练的最大测试用例大小，决定了在skip的时候最大值 */
-static int MIN_TESTCASE_SEND_TO_PY = 100; /* Yagol: 最低给py发送的测试用例数量，越多，py训练的越充分*/
-static u64 real_time_testcase_counter=0; /* Yagol:实时记录存在cov的测试用例数量*/
-static int endurance_time = 10; /* 容忍afl多少分钟没有发现新的路径 */
-static u64 model_skip_byte_size=0; /* Yagol:被模型跳过的字节总数*/
-static u64 model_choose_byte_size=0; /* lowry:被模型选中的字节总数*/
-static u8 enable_havoc=0;
+static s32 yagol_testcase_counter = 0;        /* Yagol: for count testcase yagol create, used for testcase filename.            */
+static u64 yagol_testcase_more_counter = 0;   /* Yagol: 超过一定数量后，剩下的测试用例根据概率保存，这个全局变量统计概率保存的测试用例序号    */
+static s32 fuzz_loop_round_counter = 0;       /* Yagol: for count fuzz main loop, used for testcase filename.                   */
+static u64 last_py_train_testcase = 0;        /* Yagol: for count last py train testcase                                        */
+static s32 prob_mapper[100] = {0};            /* Yagol: for mutate probability mapper                                           */
+static s32 sum_prob = 0;                      /* Yagol: for mutate probability sum                                              */
+static u8 enable_base_prob = 0;               /* Yagol: can enable mutate base prob?                                            */
+static s32 MAX_TESTCASE_SKIP_SIZE = 100;      /* Yagol: 用于py模块训练的最大测试用例的大小, 决定了在skip的时候最大值                     */
+static s32 MIN_TESTCASE_SEND_TO_PY = 100;     /* Yagol: 最低给py发送的测试用例数量, 越多, py训练的越充分                               */
+static u64 real_time_testcase_counter = 0;    /* Yagol: 实时记录存在cov的测试用例的数量                                              */
+static s32 endurance_time = 10;               /* Yagol: 容忍afl多少分钟没有发现新的路径                                              */
+static u64 model_skip_byte_size = 0;          /* Yagol: 被模型跳过的字节总数量                                                      */
+static u64 model_choose_byte_size = 0;        /* lowry: 被模型选中的字节总数量                                                      */
+
 /* Interesting values, as per config.h */
 
 static s8  interesting_8[]  = { INTERESTING_8 };
@@ -366,28 +366,31 @@ enum {
 int update_prob_mapper(char *fusion_path)
 {
   FILE *in = fopen(fusion_path, "r"); //打开py输出的权重文件，这是个csv文件，用逗号分割，前面是字节序号，后面是权重
-  if (in == NULL)
-  {
+
+  if (in == NULL) {
     perror("file can not open or is null");
     exit(1); //文件打不开，退出整个程序
     return -1; // 好像无意义了，因为退出了？
   }
   char buf[1024]; //用于读取文件的一行
 
-  while (fgets(buf, sizeof(buf), in) != NULL) //是否读取到文件末尾了
-  {
-    char *split = strtok(buf, ",");  //根据逗号分割
-    int temp = atoi(split);          //前面的是int，是字节序号
-    split = strtok(NULL, ",");       //再分割，这是找到了第二个
-    prob_mapper[temp] = atoi(split); //第二个是权重，是int
-    if(prob_mapper[temp] > sum_prob){
-        sum_prob=prob_mapper[temp];
+  while (fgets(buf, sizeof(buf), in) != NULL) {   //是否读取到文件末尾了
+    char *split = strtok(buf, ",");               //根据逗号分割
+    int temp = atoi(split);                       //前面的是int，是字节序号
+    split = strtok(NULL, ",");                    //再分割，这是找到了第二个
+    prob_mapper[temp] = atoi(split);              //第二个是权重，是int
+    if (prob_mapper[temp] > sum_prob){
+        sum_prob = prob_mapper[temp];
     }
   }
+
   fclose(in); //关闭文件
   return 0;
 }
+
+
 /* 开启py模块，用于向py发送信号 */
+
 int start_py_module()
 {
   int sock_fd;
@@ -411,38 +414,31 @@ int start_py_module()
   char recv_buf[999];                                                                          // 接收文件，在这里指存在权重信息的文件的地址
   send_num = sendto(sock_fd, out_dir, strlen(out_dir), 0, (struct sockaddr *)&addr_serv, len); //发送咯
 
-  if (send_num < 0)
-  {
+  if (send_num < 0) {
       perror("sendto error:");
       exit(1);
   }
 
   recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 0, (struct sockaddr *)&addr_serv, (socklen_t *)&len); //发送完了，等待接收，直到超时
 
-  if (recv_num < 0) //接收的数据为-1，那就是失败了
-  {
+  if (recv_num < 0) {       //接收的数据为-1，那就是失败了
     perror("recvfrom error:");
     exit(1);
   }
 
   recv_buf[recv_num] = '\0'; //接收成功，在末尾加结束符，防止读取越界
 
-  close(sock_fd);         //关闭接口
-  if (recv_buf[0] == '/') //如果接收的第一个字符是文件分隔符，也就是'/'，那说明内容也是正确的
-  {
-    printf("py end success!\n");           //向屏幕输出，告诉用户启动了py
-    if (0 == update_prob_mapper(recv_buf)) //根据权重文件，更新afl内部的权重数组
-    {
-      enable_base_prob = 1; //更新成功，那么全局启动py模块
+  close(sock_fd);                               //关闭接口
+  if (recv_buf[0] == '/') {                     //如果接收的第一个字符是文件分隔符，也就是'/'，那说明内容也是正确的
+    printf("py end success!\n");                //向屏幕输出，告诉用户启动了py
+    if (0 == update_prob_mapper(recv_buf)) {    //根据权重文件，更新afl内部的权重数组
+      enable_base_prob = 1;                     //更新成功，那么全局启动py模块
     }
-    else
-    {
+    else {
       enable_base_prob = 0; //更新失败，关闭py模块
     }
     return 0;
-  }
-  else
-  {
+  } else {
     return -1; //发送py启动信号，失败
   }
 }
@@ -5562,13 +5558,12 @@ static u8 fuzz_one(char** argv) {
   } while (0)
 
   /* Yagol: init */
-//  s32 temp_byte_index = 0;          //临时计算位所在的字节位置，>>3
-//  int random_prob = 0;              //这次的随机概率阈值
-//  float cumulative_probability = 0; //累加阈值，用于判断是否选择
+  //  s32 temp_byte_index = 0;          //临时计算位所在的字节位置，>>3
+  //  int random_prob = 0;              //这次的随机概率阈值
+  //  float cumulative_probability = 0; //累加阈值，用于判断是否选择
   /* Radon: myflip, 只翻转第favored_byte个字节的内容 */
-  /* TODO: 现在只是翻转某一个字节并保存了下来, 后续需要搞清楚要怎么变异 */
 
-#if 1
+#if 0
   s32 favored_byte = 1;   // 翻转第favored_byte + 1个字节
 
   stage_short = "myflip";
@@ -5618,10 +5613,11 @@ static u8 fuzz_one(char** argv) {
   orig_hit_cnt = queued_paths + unique_crashes;
 
   prev_cksum = queue_cur->exec_cksum;
-//  if (enable_base_prob == 1) //训练过后模型，才能得知最大概率
-//    random_prob = UR((int)sum_prob);
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)          //训练过后模型，才能得知最大概率
+  //   random_prob = UR((int)sum_prob);
+  // cumulative_probability = 0;         //重置累加阈值
+  // temp_byte_index = 0;                //重置字节序号，不过不重置也行
+
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
     if (is_select_base_prob(stage_cur) == 0){
@@ -5716,10 +5712,11 @@ static u8 fuzz_one(char** argv) {
   stage_max   = (len << 3) - 1;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)  //训练过后模型，才能得知最大概率
-//    random_prob = UR((int)sum_prob);
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)  //训练过后模型，才能得知最大概率
+  //   random_prob = UR((int)sum_prob);
+
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
     if (is_select_base_prob(stage_cur) == 0){
@@ -5750,10 +5747,11 @@ static u8 fuzz_one(char** argv) {
   stage_max   = (len << 3) - 3;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
     if (is_select_base_prob(stage_cur) == 0){
@@ -5812,10 +5810,11 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
     if (is_select_base_prob(stage_cur) == 0){
@@ -5889,15 +5888,17 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len - 1;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
-  for (i = 0; i < len - 1; i++)
-  {
-    if (is_select_base_prob(stage_cur) == 0){
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
+  for (i = 0; i < len - 1; i++) {
+
+    if (is_select_base_prob(stage_cur) == 0) {
         continue;
     }
+
     /* Let's consult the effector map... */
 
     if (!eff_map[EFF_APOS(i)] && !eff_map[EFF_APOS(i + 1)]) {
@@ -5932,16 +5933,19 @@ static u8 fuzz_one(char** argv) {
   stage_max   = len - 3;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
-  for (i = 0; i < len - 3; i++)
-  {
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
+  for (i = 0; i < len - 3; i++) {
+
     if (is_select_base_prob(stage_cur) == 0){
         continue;
     }
+
     /* Let's consult the effector map... */
+
     if (!eff_map[EFF_APOS(i)] && !eff_map[EFF_APOS(i + 1)] &&
         !eff_map[EFF_APOS(i + 2)] && !eff_map[EFF_APOS(i + 3)]) {
       stage_max--;
@@ -5982,29 +5986,29 @@ skip_bitflip:
   stage_val_type = STAGE_VAL_LE;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
-  for (i = 0; i < len; i++)
-  {
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
+  for (i = 0; i < len; i++) {
 
     u8 orig = out_buf[i];
 
     /* Let's consult the effector map... */
 
-    if (!eff_map[EFF_APOS(i)]) //如果这个字节位置在EFF里无效，就跳过
-    {
+    if (!eff_map[EFF_APOS(i)]) {  //如果这个字节位置在EFF里无效，就跳过
       stage_max -= 2 * ARITH_MAX;
       continue;
     }
-    if (is_select_base_prob(stage_cur) == 0){
+
+    if (is_select_base_prob(stage_cur) == 0) {
         continue;
     }
+
     stage_cur_byte = i;
 
-    for (j = 1; j <= ARITH_MAX; j++) //对这个字节位置进行+-35的操作
-    {
+    for (j = 1; j <= ARITH_MAX; j++) {  //对这个字节位置进行+-35的操作
 
       u8 r = orig ^ (orig + j);
 
@@ -6054,12 +6058,12 @@ skip_bitflip:
   stage_max   = 4 * (len - 1) * ARITH_MAX;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
-  for (i = 0; i < len - 1; i++)
-  {
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
+  for (i = 0; i < len - 1; i++) {
 
     u16 orig = *(u16*)(out_buf + i);
 
@@ -6069,9 +6073,11 @@ skip_bitflip:
       stage_max -= 4 * ARITH_MAX;
       continue;
     }
-    if (is_select_base_prob(stage_cur) == 0){
+
+    if (is_select_base_prob(stage_cur) == 0) {
         continue;
     }
+
     stage_cur_byte = i;
 
     for (j = 1; j <= ARITH_MAX; j++) {
@@ -6154,12 +6160,12 @@ skip_bitflip:
   stage_max   = 4 * (len - 3) * ARITH_MAX;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
-  for (i = 0; i < len - 3; i++)
-  {
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
+  for (i = 0; i < len - 3; i++) {
 
     u32 orig = *(u32*)(out_buf + i);
 
@@ -6170,9 +6176,11 @@ skip_bitflip:
       stage_max -= 4 * ARITH_MAX;
       continue;
     }
-    if (is_select_base_prob(stage_cur) == 0){
+
+    if (is_select_base_prob(stage_cur) == 0) {
         continue;
     }
+
     stage_cur_byte = i;
 
     for (j = 1; j <= ARITH_MAX; j++) {
@@ -6256,10 +6264,11 @@ skip_arith:
   stage_val_type = STAGE_VAL_LE;
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
   /* Setting 8-bit integers. */
 
   for (i = 0; i < len; i++) {
@@ -6272,9 +6281,11 @@ skip_arith:
       stage_max -= sizeof(interesting_8);
       continue;
     }
-    if (is_select_base_prob(stage_cur) == 0){
+
+    if (is_select_base_prob(stage_cur) == 0) {
         continue;
     }
+
     stage_cur_byte = i;
 
     for (j = 0; j < sizeof(interesting_8); j++) {
@@ -6314,12 +6325,12 @@ skip_arith:
   stage_max   = 2 * (len - 1) * (sizeof(interesting_16) >> 1);
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
-  for (i = 0; i < len - 1; i++)
-  {
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
+  for (i = 0; i < len - 1; i++) {
 
     u16 orig = *(u16*)(out_buf + i);
 
@@ -6329,9 +6340,11 @@ skip_arith:
       stage_max -= sizeof(interesting_16);
       continue;
     }
-    if (is_select_base_prob(stage_cur) == 0){
+
+    if (is_select_base_prob(stage_cur) == 0) {
         continue;
     }
+
     stage_cur_byte = i;
 
     for (j = 0; j < sizeof(interesting_16) / 2; j++) {
@@ -6388,12 +6401,12 @@ skip_arith:
   stage_max   = 2 * (len - 3) * (sizeof(interesting_32) >> 2);
 
   orig_hit_cnt = new_hit_cnt;
-//  cumulative_probability = 0; //重置累加阈值
-//  temp_byte_index = 0;        //重置字节序号，不过不重置也行
-//  if (enable_base_prob == 1)
-//    random_prob = UR((int)sum_prob);
-  for (i = 0; i < len - 3; i++)
-  {
+  // cumulative_probability = 0; //重置累加阈值
+  // temp_byte_index = 0;        //重置字节序号，不过不重置也行
+  // if (enable_base_prob == 1)
+  //   random_prob = UR((int)sum_prob);
+
+  for (i = 0; i < len - 3; i++) {
 
     u32 orig = *(u32*)(out_buf + i);
 
@@ -6404,9 +6417,11 @@ skip_arith:
       stage_max -= sizeof(interesting_32) >> 1;
       continue;
     }
-    if (is_select_base_prob(stage_cur) == 0){
+
+    if (is_select_base_prob(stage_cur) == 0) {
         continue;
     }
+
     stage_cur_byte = i;
 
     for (j = 0; j < sizeof(interesting_32) / 4; j++) {
