@@ -16,7 +16,8 @@ clf = MLPClassifier(
     # solver='adam',
     # alpha=1e-5,
     hidden_layer_sizes=hidden_layer_sizes,  # 默认是(100,)
-    max_iter=max_iter
+    max_iter=max_iter,
+    verbose=False
 )
 
 
