@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-04-27 17:40:43
+ * @LastEditTime: 2022-06-20 18:02:33
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -41,9 +41,10 @@
 using namespace llvm;
 
 
-/* 全局变量 */
-std::map<std::string, unsigned> loopMap;   // 记录循环基本块及其所处循环深度的map
-std::map<std::string, unsigned> branchMap; // 记录分支基本块及其所处分支深度的map
+cl::opt<std::string> OutDirectory(
+    "outdir",
+    cl::desc("Output directory where txt files are generated."),
+    cl::value_desc("outdir"));
 
 
 namespace {
@@ -132,35 +133,6 @@ static bool isBlacklisted(const Function *F) {
 }
 
 
-/**
- * @brief 获取基本块的名字
- *
- * @param BB
- * @return std::string
- */
-static std::string getBasicBlockName(BasicBlock *BB) {
-  std::string bbname, filename;
-  unsigned line = 0;
-
-  for (auto &I : *BB) {
-
-    getDebugLoc(&I, filename, line);
-
-    if (!filename.empty() && line) {
-
-      size_t found = filename.find_last_of("\\/");
-      if (found != std::string::npos)
-        filename = filename.substr(found + 1);
-
-      bbname = filename + ":" + std::to_string(line);
-      return bbname;
-    }
-  }
-
-  return "empty?";
-}
-
-
 void MyPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
   AU.addRequired<LoopInfoWrapperPass>();
@@ -175,8 +147,8 @@ bool MyPass::runOnFunction(Function &F) {
   }
 
   LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  std::ofstream fout("./LOOPINFO.txt", std::ofstream::out | std::ofstream::app);
-  std::stack<BasicBlock *> stk;
+  std::stack<BasicBlock *> stk;   // 栈, 辅助计算分支深度
+  std::set<std::string> st;       // 集合, 记录分支下的循环块
 
   for (auto &BB : F) {
 
@@ -207,22 +179,12 @@ bool MyPass::runOnFunction(Function &F) {
     bool isLoop = LI.getLoopFor(&BB);          // 检查该BB是否是循环
     unsigned loopDepth = LI.getLoopDepth(&BB); // 该BB所处的循环深度, 0表示不在循环, 1表示在1层循环, 2表示在2层...
 
-    // 如果这个基本块是循环头, 查看循环头对应的true与false分支
+    // 如果这个基本块是循环头, 查看是否在分支里
+    // TODO: 目前无法识别最外层else下的循环块
     if (isLoopHeader) {
-
-      for (auto &I : BB) {
-
-        if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
-
-          if (BI->isConditional()) {
-
-            BasicBlock *BBT = BI->getSuccessor(0); // 根据观察, 似乎getSuccessor(0)是Branch中true分支的基本块, 1是false分支的基本块
-            BasicBlock *BBF = BI->getSuccessor(1);
-
-            loopMap[bbname] = loopDepth; // TODO: 记录循环条件的True分支基本块和其循环深度
-          }
-        }
-      }
+      if (stk.size()) // 在分支里的话, 加入集合, 否则就跳过, 避免将循环深度与分支深度搞混
+        st.insert(bbname);
+      continue;
     }
 
     for (auto &I : BB) {
@@ -239,11 +201,6 @@ bool MyPass::runOnFunction(Function &F) {
         // F分支的基本块加入栈, 以计算分支深度
         stk.push(BBF);
 
-        // 分支的深度就是栈的大小
-        unsigned branchDepth = stk.size();
-
-        branchMap[bbname] = branchDepth;  // TODO: 分支这里, 应该将分支基本块(if所在块)加入map, 还是它的True分支块加入map?
-
       } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) {
 
         // 根据观察, 0一般是跳出switch-case后要经过的基本块或default基本块, 1至n-1一般是按照case顺序来的基本块
@@ -251,76 +208,30 @@ bool MyPass::runOnFunction(Function &F) {
 
         // 将default或跳出switch后的第一个基本块加入栈
         stk.push(SI->getSuccessor(0));
-
-        // 分支的深度就是栈的大小
-        unsigned branchDepth = stk.size();
-
-        for (int i = 1; i < n; i++) { // TODO: i = 0 or i = 1?
-          branchMap[getBasicBlockName(SI->getSuccessor(i))] = branchDepth;
-        }
-      }
-    }
-  }
-  return false;
-}
-
-
-bool AFLGoPass::runOnModule(Module &M) {
-
-  for (auto &F : M) {
-    /* Black list of function names */
-    if (isBlacklisted(&F)) {
-      continue;
-    }
-
-    /* AFLGo的预处理部分过程, 直接复制过来的 */
-    for (auto &BB : F) {
-
-      std::string bb_name("");
-      std::string filename;
-      unsigned line;
-
-      for (auto &I : BB) {
-        getDebugLoc(&I, filename, line);
-
-        /* Don't worry about external libs */
-        static const std::string Xlibs("/usr/");
-        if (filename.empty() || line == 0 || !filename.compare(0, Xlibs.size(), Xlibs))
-          continue;
-
-        if (bb_name.empty()) {
-
-          std::size_t found = filename.find_last_of("/\\");
-          if (found != std::string::npos)
-            filename = filename.substr(found + 1);
-
-          bb_name = filename + ":" + std::to_string(line);
         }
       }
 
-      if (!bb_name.empty()) {
+    std::ofstream fout(OutDirectory + "/BBnames.txt", std::ofstream::out | std::ofstream::app);
+    fout << bbname << "\n";
 
-        BB.setName(bb_name + ":");
-        if (!BB.hasName()) {
-          std::string newname = bb_name + ":";
-          Twine t(newname);
-          SmallString<256> NameData;
-          StringRef NameRef = t.toStringRef(NameData);
-          MallocAllocator Allocator;
-          BB.setValueName(ValueName::Create(NameRef, Allocator));
-        }
-      }
     }
+
+  // 参数中有 -mllvm -outdir=XXX的话, 就将集合内容输出到XXX下的loopInBranchBBs.txt中
+  if (!OutDirectory.empty()) {
+    std::ofstream fout(OutDirectory + "/loopInBranchBBs.txt", std::ofstream::out | std::ofstream::app);
+    for (auto &&bb : st)
+      if (!bb.empty())
+        fout << bb << "\n";
   }
 
   return false;
+
 }
 
 
 /* 注册Pass */
 static void registerPass3(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
   PM.add(new MyPass());
-  PM.add(new AFLGoPass());
 }
 static RegisterStandardPasses RegisterMyPass(PassManagerBuilder::EP_OptimizerLast, registerPass3);
 static RegisterStandardPasses RegisterMyPass0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerPass3);
