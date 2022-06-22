@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-06-22 20:06:08
+ * @LastEditTime: 2022-06-22 20:25:32
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -164,8 +164,12 @@ bool MyPass::runOnFunction(Function &F) {
     return false;
   }
 
+  // 大致思路: 新建一个map, key是基本块, value是bool型, 表示是否被访问过
+  // 每访问一个BB, 就把它的后继者加入map, 并更新map
+  // 如果BB是循环头, 并且map中有未被访问过的BB, 则证明这个循环头可能在分支中
+
   LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  std::set<std::string> st;     // 集合, 记录分支下的循环块
+  std::set<std::string> st; // 集合, 记录分支下的循环块
   std::map<BasicBlock *, bool> mp;
 
   for (auto &BB : F) {
@@ -177,24 +181,24 @@ bool MyPass::runOnFunction(Function &F) {
     if (!bbname.empty())
       BB.setName(bbname);
 
-    bool isLoopHeader = LI.isLoopHeader(&BB);  // 检查该BB是否是循环的入口
+    bool isLoopHeader = LI.isLoopHeader(&BB); // 检查该BB是否是循环的入口
 
     // 如果这个基本块是循环头, 查看是否在分支里
     if (isLoopHeader) {
 
+      // 如果map中有循环头没有被访问过, 证明这个循环头可能处于分支中
       for (auto &pBb : mp) {
         if (!pBb.second) {
           st.insert(bbname);
           break;
         }
       }
-
-      continue;
     }
 
+    // 把这个块对应的后继者加入到map, 并且初始化为false, false表示未被访问过
     for (auto &I : BB) {
 
-      // 如果这个基本块中的指令可以转换为分支指令, 输出其所在基本块的T,F分支基本块并判断深度 (深度没找到现成的方法, 目前用的栈)
+      // 如果这个基本块中的指令可以转换为BranchInst (可以通过这个类型确定BB的后继者, BranchInst不一定对应if, 也可能对应普通的跳转)
       if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
 
         int n = BI->getNumSuccessors();
@@ -204,7 +208,6 @@ bool MyPass::runOnFunction(Function &F) {
 
       } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) {
 
-        // 根据观察, 0一般是跳出switch-case后要经过的基本块或default基本块, 1至n-1一般是按照case顺序来的基本块
         int n = SI->getNumSuccessors();
 
         for (int i = 0; i < n; i++) {
@@ -214,7 +217,7 @@ bool MyPass::runOnFunction(Function &F) {
     }
   }
 
-  for (auto& name : st)
+  for (auto &name : st)
     outs() << name << "\n";
 
   return false;
