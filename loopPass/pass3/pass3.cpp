@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-06-20 18:02:33
+ * @LastEditTime: 2022-06-22 20:06:08
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -57,20 +57,10 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override;
     bool runOnFunction(Function &F) override;
   };
-
-  class AFLGoPass : public ModulePass {
-  public:
-    static char ID;
-    AFLGoPass()
-        : ModulePass(ID) {}
-
-    bool runOnModule(Module &M) override;
-  };
 } // namespace
 
 
 char MyPass::ID = 1;
-char AFLGoPass::ID = 0;
 
 
 /**
@@ -111,6 +101,34 @@ static void getDebugLoc(const Instruction *I, std::string &Filename, unsigned &L
 #endif /* LLVM_OLD_DEBUG_API */
 }
 
+/**
+ * @brief 获取基本块的名字
+ *
+ * @param BB
+ * @return std::string
+ */
+static std::string getBasicBlockName(BasicBlock *BB) {
+  std::string bbname, filename;
+  unsigned line = 0;
+
+  for (auto &I : *BB) {
+
+    getDebugLoc(&I, filename, line);
+
+    if (!filename.empty() && line) {
+
+      size_t found = filename.find_last_of("\\/");
+      if (found != std::string::npos)
+        filename = filename.substr(found + 1);
+
+      bbname = filename + ":" + std::to_string(line);
+      return bbname;
+    }
+  }
+
+  return "";
+}
+
 
 static bool isBlacklisted(const Function *F) {
   static const SmallVector<std::string, 8> Blacklist = {
@@ -147,85 +165,59 @@ bool MyPass::runOnFunction(Function &F) {
   }
 
   LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  std::stack<BasicBlock *> stk;   // 栈, 辅助计算分支深度
-  std::set<std::string> st;       // 集合, 记录分支下的循环块
+  std::set<std::string> st;     // 集合, 记录分支下的循环块
+  std::map<BasicBlock *, bool> mp;
 
   for (auto &BB : F) {
 
-    if (!stk.empty() && &BB == stk.top())
-      stk.pop();
+    mp[&BB] = true;
 
-    std::string bbname;
+    std::string bbname = getBasicBlockName(&BB);
 
-    for (auto &I : BB) {
-
-      std::string filename;
-      unsigned line;
-      getDebugLoc(&I, filename, line);
-
-      /* 仅保留文件名与行号 */
-      std::size_t found = filename.find_last_of("/\\");
-      if (found != std::string::npos)
-        filename = filename.substr(found + 1);
-
-      /* 设置基本块名称 */
-      if (bbname.empty() && !filename.empty() && line) {
-        bbname = filename + ":" + std::to_string(line);
-        break;
-      }
-    }
+    if (!bbname.empty())
+      BB.setName(bbname);
 
     bool isLoopHeader = LI.isLoopHeader(&BB);  // 检查该BB是否是循环的入口
-    bool isLoop = LI.getLoopFor(&BB);          // 检查该BB是否是循环
-    unsigned loopDepth = LI.getLoopDepth(&BB); // 该BB所处的循环深度, 0表示不在循环, 1表示在1层循环, 2表示在2层...
 
     // 如果这个基本块是循环头, 查看是否在分支里
-    // TODO: 目前无法识别最外层else下的循环块
     if (isLoopHeader) {
-      if (stk.size()) // 在分支里的话, 加入集合, 否则就跳过, 避免将循环深度与分支深度搞混
-        st.insert(bbname);
+
+      for (auto &pBb : mp) {
+        if (!pBb.second) {
+          st.insert(bbname);
+          break;
+        }
+      }
+
       continue;
     }
 
     for (auto &I : BB) {
 
-    // 如果这个基本块中的指令可以转换为分支指令, 输出其所在基本块的T,F分支基本块并判断深度 (深度没找到现成的方法, 目前用的栈)
+      // 如果这个基本块中的指令可以转换为分支指令, 输出其所在基本块的T,F分支基本块并判断深度 (深度没找到现成的方法, 目前用的栈)
       if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
 
-        if (!BI->isConditional())
-          break;
-
-        BasicBlock *BBT = BI->getSuccessor(0);
-        BasicBlock *BBF = BI->getSuccessor(1);
-
-        // F分支的基本块加入栈, 以计算分支深度
-        stk.push(BBF);
+        int n = BI->getNumSuccessors();
+        for (int i = 0; i < n; i++) {
+          mp[BI->getSuccessor(i)];
+        }
 
       } else if (SwitchInst *SI = dyn_cast<SwitchInst>(&I)) {
 
         // 根据观察, 0一般是跳出switch-case后要经过的基本块或default基本块, 1至n-1一般是按照case顺序来的基本块
         int n = SI->getNumSuccessors();
 
-        // 将default或跳出switch后的第一个基本块加入栈
-        stk.push(SI->getSuccessor(0));
+        for (int i = 0; i < n; i++) {
+          mp[SI->getSuccessor(i)];
         }
       }
-
-    std::ofstream fout(OutDirectory + "/BBnames.txt", std::ofstream::out | std::ofstream::app);
-    fout << bbname << "\n";
-
     }
-
-  // 参数中有 -mllvm -outdir=XXX的话, 就将集合内容输出到XXX下的loopInBranchBBs.txt中
-  if (!OutDirectory.empty()) {
-    std::ofstream fout(OutDirectory + "/loopInBranchBBs.txt", std::ofstream::out | std::ofstream::app);
-    for (auto &&bb : st)
-      if (!bb.empty())
-        fout << bb << "\n";
   }
 
-  return false;
+  for (auto& name : st)
+    outs() << name << "\n";
 
+  return false;
 }
 
 
