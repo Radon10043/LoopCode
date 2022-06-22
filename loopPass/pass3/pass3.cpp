@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-06-22 20:25:32
+ * @LastEditTime: 2022-06-23 01:58:51
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -193,6 +193,8 @@ bool MyPass::runOnFunction(Function &F) {
           break;
         }
       }
+
+      continue;
     }
 
     // 把这个块对应的后继者加入到map, 并且初始化为false, false表示未被访问过
