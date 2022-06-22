@@ -313,6 +313,7 @@ static u64 real_time_testcase_counter = 0;    /* Yagol: 实时记录存在cov的
 static s32 endurance_time = 10;               /* Yagol: 容忍afl多少分钟没有发现新的路径                                              */
 static u64 model_skip_byte_size = 0;          /* Yagol: 被模型跳过的字节总数量                                                      */
 static u64 model_choose_byte_size = 0;        /* lowry: 被模型选中的字节总数量                                                      */
+static s32 checking_byte_cur=0;                 /* Yagol: 临时记录需要被检测的字节位置下标，为什么多出这个变量？因为想和原版afl区分，万一原版用它干了别的，不影响他 */
 
 /* Interesting values, as per config.h */
 
@@ -5361,11 +5362,12 @@ static u8 could_be_interest(u32 old_val, u32 new_val, u8 blen, u8 check_le) {
 
 }
 
-int is_select_base_prob(s32 stage_cur_copy){
+int is_select_base_prob(s32 checking_byte_location){
+    //checking_byte_location 是需要判断的字节位置，进入的时候，别忘了处理位字节，比如除以8
     if(enable_base_prob==1){
-        s32 temp_byte_index_copy=stage_cur_copy >> 3;
-        if (temp_byte_index_copy < MAX_TESTCASE_SKIP_SIZE){
-            if(UR((int)sum_prob)<=prob_mapper[temp_byte_index_copy]){//如果随机值没有概率值大，那么就选择他
+        //根据位的位置，计算出字节位置
+        if (checking_byte_location < MAX_TESTCASE_SKIP_SIZE){
+            if(UR((int)sum_prob)<=prob_mapper[checking_byte_location]){//如果随机值没有概率值大，那么就选择他
                 model_choose_byte_size++;
                 return 1;
             }else{//随机值比概率值还要大，**，跳过你
@@ -5605,7 +5607,7 @@ static u8 fuzz_one(char** argv) {
   /* Single walking bit. */
 
   stage_short = "flip1";
-  stage_max   = len << 3;
+  stage_max   = len << 3; // 值为字节序列的长度乘以8，也就是位的长度
   stage_name  = "bitflip 1/1";
 
   stage_val_type = STAGE_VAL_NONE;
@@ -5620,10 +5622,13 @@ static u8 fuzz_one(char** argv) {
 
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-    if (is_select_base_prob(stage_cur) == 0){
+    checking_byte_cur= stage_cur >> 3;
+    if (is_select_base_prob(checking_byte_cur) == 0){
+        stage_cur+=7;//跳过这个比特剩下的位，注意for循环自己也会++，所以这里+7就行
         continue;
     }
     stage_cur_byte = stage_cur >> 3;
+
 
     FLIP_BIT(out_buf, stage_cur);
 
@@ -5719,7 +5724,9 @@ static u8 fuzz_one(char** argv) {
 
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-    if (is_select_base_prob(stage_cur) == 0){
+    checking_byte_cur= stage_cur >> 3;
+    if (is_select_base_prob(checking_byte_cur) == 0){
+        stage_cur+=7;//跳过这个比特剩下的位，注意for循环自己也会++，所以这里+7就行
         continue;
     }
     stage_cur_byte = stage_cur >> 3;
@@ -5754,7 +5761,9 @@ static u8 fuzz_one(char** argv) {
 
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-    if (is_select_base_prob(stage_cur) == 0){
+    checking_byte_cur= stage_cur >> 3;
+    if (is_select_base_prob(checking_byte_cur) == 0){
+        stage_cur+=7;//跳过这个比特剩下的位，注意for循环自己也会++，所以这里+7就行
         continue;
     }
 
@@ -5807,7 +5816,7 @@ static u8 fuzz_one(char** argv) {
 
   stage_name  = "bitflip 8/8";
   stage_short = "flip8";
-  stage_max   = len;
+  stage_max   = len; //此时，stage_max变为了字节序列的长度
 
   orig_hit_cnt = new_hit_cnt;
   // cumulative_probability = 0; //重置累加阈值
@@ -5817,7 +5826,8 @@ static u8 fuzz_one(char** argv) {
 
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++)
   {
-    if (is_select_base_prob(stage_cur) == 0){
+    checking_byte_cur= stage_cur;
+    if (is_select_base_prob(checking_byte_cur) == 0){
         continue;
     }
     stage_cur_byte = stage_cur;
@@ -5893,17 +5903,19 @@ static u8 fuzz_one(char** argv) {
   // if (enable_base_prob == 1)
   //   random_prob = UR((int)sum_prob);
 
-  for (i = 0; i < len - 1; i++) {
+  for (i = 0; i < len - 1; i++) { //注意，变成i了
 
-    if (is_select_base_prob(stage_cur) == 0) {
-        continue;
-    }
+
 
     /* Let's consult the effector map... */
 
     if (!eff_map[EFF_APOS(i)] && !eff_map[EFF_APOS(i + 1)]) {
       stage_max--;
       continue;
+    }
+    checking_byte_cur= i;
+    if (is_select_base_prob(checking_byte_cur) == 0){
+        continue;
     }
 
     stage_cur_byte = i;
@@ -5940,9 +5952,7 @@ static u8 fuzz_one(char** argv) {
 
   for (i = 0; i < len - 3; i++) {
 
-    if (is_select_base_prob(stage_cur) == 0){
-        continue;
-    }
+
 
     /* Let's consult the effector map... */
 
@@ -5951,6 +5961,12 @@ static u8 fuzz_one(char** argv) {
       stage_max--;
       continue;
     }
+
+    checking_byte_cur= i;
+    if (is_select_base_prob(checking_byte_cur) == 0){
+        continue;
+    }
+
 
     stage_cur_byte = i;
 
@@ -6002,7 +6018,8 @@ skip_bitflip:
       continue;
     }
 
-    if (is_select_base_prob(stage_cur) == 0) {
+    checking_byte_cur= i;
+    if (is_select_base_prob(checking_byte_cur) == 0){
         continue;
     }
 
@@ -6074,7 +6091,8 @@ skip_bitflip:
       continue;
     }
 
-    if (is_select_base_prob(stage_cur) == 0) {
+    checking_byte_cur= i;
+    if (is_select_base_prob(checking_byte_cur) == 0){
         continue;
     }
 
@@ -6177,7 +6195,8 @@ skip_bitflip:
       continue;
     }
 
-    if (is_select_base_prob(stage_cur) == 0) {
+    checking_byte_cur= i;
+    if (is_select_base_prob(checking_byte_cur) == 0){
         continue;
     }
 
@@ -6282,7 +6301,8 @@ skip_arith:
       continue;
     }
 
-    if (is_select_base_prob(stage_cur) == 0) {
+    checking_byte_cur= i;
+    if (is_select_base_prob(checking_byte_cur) == 0){
         continue;
     }
 
@@ -6341,7 +6361,8 @@ skip_arith:
       continue;
     }
 
-    if (is_select_base_prob(stage_cur) == 0) {
+    checking_byte_cur= i;
+    if (is_select_base_prob(checking_byte_cur) == 0){
         continue;
     }
 
@@ -6418,7 +6439,8 @@ skip_arith:
       continue;
     }
 
-    if (is_select_base_prob(stage_cur) == 0) {
+    checking_byte_cur= i;
+    if (is_select_base_prob(checking_byte_cur) == 0){
         continue;
     }
 
