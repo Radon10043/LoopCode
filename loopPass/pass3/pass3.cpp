@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-06-23 11:42:13
+ * @LastEditTime: 2022-06-23 18:33:40
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -129,6 +129,44 @@ static std::string getBasicBlockName(BasicBlock *BB) {
   return "";
 }
 
+/**
+ * @brief 检查基本块中是否包含goto
+ *
+ * @param BB
+ * @return true
+ * @return false
+ */
+static bool haveGoto(BasicBlock *BB) {
+
+  BasicBlock *succBB; // BB的后继块succBB
+
+  for (auto &I : *BB) {
+
+    if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
+
+      // 如果块中包含goto的话, 后继者应该只有一个, 并且后继者和它下一个要遍历的BB是不同的
+      int n = BI->getNumSuccessors();
+      if (n != 1 || BI->getSuccessor(0) == BB->getNextNode())
+        return false;
+
+      succBB = BI->getSuccessor(0);
+    }
+  }
+
+  // 如果遍历到了函数结尾的话应该就是没有后继块的
+  if (!succBB)
+    return false;
+
+  // 根据观察, 如果这个块有标签, IR里会有llvm.dbg.label(不确定)并且label的名字不为空
+  // 如果满足上一行的条件的话就返回true
+  for (auto &I : *succBB)
+    if (DbgLabelInst *DLI = dyn_cast<DbgLabelInst>(&I))
+      if (!DLI->getLabel()->getName().empty())
+        return true;
+
+  return false;
+}
+
 
 static bool isBlacklisted(const Function *F) {
   static const SmallVector<std::string, 8> Blacklist = {
@@ -178,8 +216,10 @@ bool MyPass::runOnFunction(Function &F) {
 
     std::string bbname = getBasicBlockName(&BB);
 
+#ifdef DEBUG
     if (!bbname.empty())
-      BB.setName(bbname);
+      BB.setName(bbname + ":");
+#endif
 
     bool isLoopHeader = LI.isLoopHeader(&BB); // 检查该BB是否是循环的入口
 
@@ -196,6 +236,10 @@ bool MyPass::runOnFunction(Function &F) {
 
       continue;
     }
+
+    // 跳过包含goto的基本块, 防止分析错误
+    if (haveGoto(&BB))
+      continue;
 
     // 把这个块对应的后继者加入到map, 并且初始化为false, false表示未被访问过
     for (auto &I : BB) {
@@ -218,6 +262,13 @@ bool MyPass::runOnFunction(Function &F) {
       }
     }
   }
+
+#ifdef DEBUG
+
+  for (auto &name : st)
+    outs() << name << "\n";
+
+#endif
 
   /* Output */
   if (!OutDirectory.empty()) {
