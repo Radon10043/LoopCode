@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-06-23 02:06:41
+ * @LastEditTime: 2022-06-23 11:42:13
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -219,8 +219,12 @@ bool MyPass::runOnFunction(Function &F) {
     }
   }
 
-  for (auto &name : st)
-    outs() << name << "\n";
+  /* Output */
+  if (!OutDirectory.empty()) {
+    std::ofstream fout(OutDirectory + "/loopInBranch.txt", std::ofstream::out | std::ofstream::app);
+    for (auto &name : st)
+      fout << name << "\n";
+  }
 
   return false;
 }
