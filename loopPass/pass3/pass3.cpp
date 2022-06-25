@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-06-25 11:52:29
+ * @LastEditTime: 2022-06-25 11:55:48
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -138,7 +138,7 @@ static std::string getBasicBlockName(BasicBlock *BB) {
  */
 static bool haveGoto(BasicBlock *BB) {
 
-  BasicBlock *succBB; // BB的后继块succBB
+  BasicBlock *succBB = nullptr; // BB的后继块succBB
 
   for (auto &I : *BB) {
 
@@ -151,9 +151,6 @@ static bool haveGoto(BasicBlock *BB) {
 
       succBB = BI->getSuccessor(0);
 
-    } else if (UnreachableInst *UI = dyn_cast<UnreachableInst>(&I)) {
-
-      return false;
     }
   }
 
