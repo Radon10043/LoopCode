@@ -2,7 +2,7 @@
  * @Author: Radon
  * @Date: 2022-03-30 11:30:24
  * @LastEditors: Radon
- * @LastEditTime: 2022-06-23 18:33:40
+ * @LastEditTime: 2022-06-25 11:52:29
  * @Description: Hi, say something
  */
 #include <fstream>
@@ -150,6 +150,10 @@ static bool haveGoto(BasicBlock *BB) {
         return false;
 
       succBB = BI->getSuccessor(0);
+
+    } else if (UnreachableInst *UI = dyn_cast<UnreachableInst>(&I)) {
+
+      return false;
     }
   }
 
