@@ -137,10 +137,11 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None):
                             assert len(temp) == len(lines)
                             y_data.append(temp)
                     if root.endswith("ya"):  # 清空ya文件夹的测试用例，因为这些测试用例只提供模型训练数据，没有其他作用
-                        os.remove(coverage_path)
-                        loguru.logger.debug(f"测试用例覆盖信息被删除: {coverage_path}")
                         os.remove(testcase_bin_path)
-                        loguru.logger.debug(f"测试用例被删除: {testcase_bin_path}")
+                        loguru.logger.debug(f"ya的测试用例被删除: {testcase_bin_path}")
+                    os.remove(coverage_path)  # 清空所有的cov 0/1信息，训练过后就没有用了
+                    loguru.logger.debug(f"测试用例覆盖信息被删除: {coverage_path}")
+
     loguru.logger.debug(f"该批次最长测试用例长度为: {longest_testcase_length}")
 
     return x_data, y_data, is_first_read

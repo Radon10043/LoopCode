@@ -18,7 +18,7 @@ sys.path.append(BASE_DIR)
 
 import train_dataset_generator
 from bb_list_getter import get_wanted_label_with_low_coverage
-from sklearn_test import train_sk_model
+from sklearn_test import train_sk_model, load_model
 from train_dataset_generator import read_afl_testcase
 from weight_diff_calculate import calculate_weight_diff_for_each_output
 import utils
@@ -52,7 +52,10 @@ def test_case_type_2():
 
 
 @loguru.logger.catch()
-def start_module(printer=True, test_case_path=None):
+def start_module(printer=True, test_case_path=None, pre_train_model_save_path=None):
+    if test_case_path is None:
+        loguru.logger.error("模型读取的测试用例地址为空，请检查")
+        raise Exception("模型读取的测试用例地址为空，请检查")
     x_data, y_data, is_first_read = read_afl_testcase(
         max_feature_length=max_features,
         # 最大特征长度, 也就是字节序列的长度，不够的话，后面补0，够的话，取前面的
@@ -69,9 +72,12 @@ def start_module(printer=True, test_case_path=None):
     model = train_sk_model(
         x_data,  # 特征
         y_data,  # 标签
-        is_test=True,  # 是否切割数据集，用于输出f1值
-        partial_fit=not is_first_read
+        is_test=False,  # 是否切割数据集，用于输出f1值
+        partial_fit=not is_first_read,
+        pre_train_model_save_path=pre_train_model_save_path
     )
+    if pre_train_model_save_path is not None:
+        return
     bb_list_wanted = get_wanted_label_with_low_coverage(y_data, size=10)  # 根据覆盖情况，获得最差的size个基本块的序号
     return calculate_weight_diff_for_each_output(
         feature_size,  # 特征的长度
@@ -87,8 +93,12 @@ def start_module(printer=True, test_case_path=None):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--log-path", help="日志文件保存位置", type=str)
+    parser.add_argument("--log-path", help="日志文件保存位置", type=str, required=True)
     parser.add_argument("--skip-log-stdout", help="阻止通过stdout输出日志信息", action="store_true")
+    parser.add_argument("--pre-train", help="仅预训练", action="store_true")
+    parser.add_argument("--pre-train-testcase", help="预训练时，模型的训练材料的本地地址", type=str)
+    parser.add_argument("--model-save-path", help="预训练时，模型的保存地址", type=str)
+    parser.add_argument("--model-load-path", help="非预训练模式时，预训练模型的地址，后续更新迭代模型也在该地址中", type=str)
     return parser.parse_args()
 
 
@@ -105,27 +115,47 @@ if __name__ == '__main__':
         if args.skip_log_stdout:
             loguru.logger.remove()
         timestamp = time.time()
-        log_path = os.path.join(args.log_path, f"{timestamp}_py.log")
+        log_label = "pre_train" if args.pre_train else "afl"
+        log_path = os.path.join(args.log_path, f"{log_label}_{timestamp}_py.log")
         loguru.logger.add(log_path)
-        utils.kill_process_by_socket_port(PORT)
-        train_times = 0
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # internet udp模式
-        address = ("127.0.0.1", PORT)
-        server_socket.bind(address)  # 绑定开启socket端口
-        loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
-        while True:
-            receive_data, client = server_socket.recvfrom(1024)
-            data = receive_data.decode("utf-8")
-            loguru.logger.info(f"receive data: {data}")
-            if data.startswith("/"):
-                time1 = time.time()
-                res = start_module(printer=False, test_case_path=data)  # 返回值是fusion的文件地址
-                server_socket.sendto(res.encode("utf-8"), client)
-                time_used.append(time.time() - time1)
-                train_times += 1
-                loguru.logger.info(
-                    f"\nNO.{train_times}\n\tTIME USED: {time_used[-1]}\n"
-                    f"\tTOTAL TIME USED: {sum(time_used)}\n"
-                    f"\tTOTAL TRAIN TESTCASE SIZE: {total_train_testcase_size}\n========")
+        if args.pre_train:  # 预训练模式
+            loguru.logger.info("此次为预训练模式")
+            if args.model_save_path is None:
+                loguru.logger.error("缺少预训练模型的保存位置地址")
+                raise Exception("缺少预训练模型的保存位置地址")
+            if args.pre_train_testcase is None:
+                loguru.logger.error("缺少预训练时的测试用例地址")
+                raise Exception("缺少预训练时的测试用例地址")
+            start_module(printer=True, test_case_path=args.pre_train_testcase,
+                         pre_train_model_save_path=args.model_save_path)
+            loguru.logger.info(f"预训练完成，预训练的模型位置为{args.model_save_path}")
+            loguru.logger.info("正在处理预训练数据文件夹里的数据，删掉无用测试用例...")
+            utils.trim_pre_train_testcase(args.pre_train_testcase)
+            loguru.logger.info("预训练的训练材料，成功移动到seed文件夹中")
+            loguru.logger.info("预训练模式结束")
+        else:  # afl联动模式
+            if args.model_load_path is not None:
+                load_model(args.model_load_path)
+                loguru.logger.info(f"成功加载预训练模型{args.model_load_path}")
+            utils.kill_process_by_socket_port(PORT)
+            train_times = 0
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # internet UDP模式
+            address = ("127.0.0.1", PORT)
+            server_socket.bind(address)  # 绑定开启socket端口
+            loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
+            while True:
+                receive_data, client = server_socket.recvfrom(1024)
+                data = receive_data.decode("utf-8")
+                loguru.logger.info(f"receive data: {data}")
+                if data.startswith("/"):
+                    time1 = time.time()
+                    res = start_module(printer=False, test_case_path=data)  # 返回值是fusion的文件地址
+                    server_socket.sendto(res.encode("utf-8"), client)
+                    time_used.append(time.time() - time1)
+                    train_times += 1
+                    loguru.logger.info(
+                        f"\nNO.{train_times}\n\tTIME USED: {time_used[-1]}\n"
+                        f"\tTOTAL TIME USED: {sum(time_used)}\n"
+                        f"\tTOTAL TRAIN TESTCASE SIZE: {total_train_testcase_size}\n========")
     else:  # 不启用SOCKET，单机测试
         start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")

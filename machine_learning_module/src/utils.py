@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 
 import loguru
@@ -17,3 +18,14 @@ def kill_process_by_socket_port(port):
     assert len(kill_output) == 0, "kill端口占用程序时出错"
     loguru.logger.info("kill成功, 为了模拟堵塞效果, sleep一段时间")
     time.sleep(2)
+
+
+def trim_pre_train_testcase(pre_train_testcase):
+    seed_path = os.path.join(pre_train_testcase, "seed")
+    os.mkdir(seed_path)
+    testcase_dirs = [f"{pre_train_testcase}/crashes", f"{pre_train_testcase}/queue", f"{pre_train_testcase}/hangs"]
+    for testcase_dir in testcase_dirs:
+        for root, dirs, files in os.walk(testcase_dir):
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                shutil.copy(file_path, seed_path)

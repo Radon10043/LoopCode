@@ -314,6 +314,7 @@ static s32 endurance_time = 10;               /* Yagol: 容忍afl多少分钟没
 static u64 model_skip_byte_size = 0;          /* Yagol: 被模型跳过的字节总数量                                                      */
 static u64 model_choose_byte_size = 0;        /* lowry: 被模型选中的字节总数量                                                      */
 static s32 checking_byte_cur=0;                 /* Yagol: 临时记录需要被检测的字节位置下标，为什么多出这个变量？因为想和原版afl区分，万一原版用它干了别的，不影响他 */
+static u8 pre_train_model =0;                /* Yagol: 是否为预训练模型存在的模式,是则直接启动py   */
 
 /* Interesting values, as per config.h */
 
@@ -8354,7 +8355,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:e:")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:QV:k:pl:e:y")) > 0)
 
     switch (opt) {
 
@@ -8560,6 +8561,9 @@ int main(int argc, char** argv) {
       case 'e':/* 容忍afl多少分钟没有覆盖新的路径 */
         if (sscanf(optarg, "%u", &endurance_time) < 1) FATAL("Bad syntax used for -e");
         break;
+      case 'y': /* 是否为预训练模型存在的模式,是则直接启动py */
+        pre_train_model=1;
+        break;
 
       default:
 
@@ -8658,6 +8662,19 @@ int main(int argc, char** argv) {
 
   write_stats_file(0, 0, 0);
   save_auto();
+
+#if 1
+    // yagol py module
+    if (enable_py) //根据afl的参数，是否开启py模块
+    {
+    if (pre_train_model){  //预训练模式，那么模型已经加载在py中，可以直接开启py模式
+        if (-1 == start_py_module()){
+                  FATAL("start_py_module failed");
+           }
+    }
+
+    }
+#endif
 
   if (stop_soon) goto stop_fuzzing;
 
