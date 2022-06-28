@@ -9,6 +9,7 @@ import loguru
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
+import joblib
 
 hidden_layer_sizes = (3, 3, 3,)  # 隐藏层
 max_iter = 200  # 最大迭代次数
@@ -21,7 +22,13 @@ clf = MLPClassifier(
 )
 
 
-def train_sk_model(x_data, y_data, is_test: bool = False, partial_fit=False):
+def load_model(model_saved_path):
+    global clf
+    clf = joblib.load(model_saved_path)
+
+
+def train_sk_model(x_data, y_data, is_test: bool = False, partial_fit=False,
+                   pre_train_model_save_path=None):
     """
     使用sklearn的多层感知机实现模型训练
 
@@ -29,6 +36,7 @@ def train_sk_model(x_data, y_data, is_test: bool = False, partial_fit=False):
     :param y_data:
     :param is_test: 是否是测试?若是，则启动数据集划分
     :param partial_fit:
+    :param pre_train_model_save_path:
     :return:
     """
     if partial_fit:
@@ -44,4 +52,6 @@ def train_sk_model(x_data, y_data, is_test: bool = False, partial_fit=False):
         else:
             loguru.logger.info("training...")
             clf.fit(x_data, y_data)
+            if pre_train_model_save_path is not None:
+                joblib.dump(clf, pre_train_model_save_path)
     return clf
