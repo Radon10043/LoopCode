@@ -60,4 +60,4 @@ sleep 5s
 $AFL/afl-fuzz -p -y -k 240 -l $line -e 10 -m none -i /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
 
 # 独立运行原版afl
-#$AFL/afl-fuzz -k 60 -l $line -m none -i in_afl_origin -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out_afl_origin /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out_afl_origin.jpg --input @@
+#$AFL/afl-fuzz -k 60 -l $line -m none -i in_afl_origin -o /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/out_afl_origin /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out_afl_origin.jpg --input @@

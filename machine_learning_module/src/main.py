@@ -6,6 +6,7 @@
 
 import os
 import sys
+from threading import Thread
 
 import loguru
 import numpy
@@ -22,6 +23,7 @@ from sklearn_test import train_sk_model, load_model
 from train_dataset_generator import read_afl_testcase
 from weight_diff_calculate import calculate_weight_diff_for_each_output
 import utils
+import real_time_data as rta
 
 max_features = 100
 PORT = 12012  # UDP端口
@@ -143,6 +145,8 @@ if __name__ == '__main__':
             address = ("127.0.0.1", PORT)
             server_socket.bind(address)  # 绑定开启socket端口
             loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
+            t1 = Thread(target=rta.recordData, args=())
+            t1.start()
             while True:
                 receive_data, client = server_socket.recvfrom(1024)
                 data = receive_data.decode("utf-8")
