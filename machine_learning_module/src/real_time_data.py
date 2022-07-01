@@ -24,6 +24,7 @@ def recordData():
     # 字典中的key值即为csv中列名
     dataframe = pd.DataFrame({'时间': x_axis_data, '覆盖路径数量': y_axis_data})
     dataframe.to_csv("/home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/out1/graphData.csv", index=False)
+    # dataframe.to_csv("/home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/out/graphData.csv", index=False)
     while i < totalTime:
         sleep(1800)    # 1800s/30min读取一次数据
         i += 0.5
@@ -43,7 +44,7 @@ def recordData():
     plt.figure(figsize=(8, 6))  # 定义图的大小
     plt.xlabel("time")  # X轴标签
     plt.ylabel("totalPath")  # Y轴坐标标签
-    plt.title("record every hour")  # 曲线图的标题
+    plt.title("record half an hour")  # 曲线图的标题
 
     plt.plot(x_axis_data, y_axis_data)  # 绘制曲线图
     plt.savefig('/home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/out1/path_pic.jpg')  # 保存该图片

@@ -34,9 +34,9 @@ main() {
 
   export PY_PATH=/home/lowry/anaconda3/bin/python
   export PY_MAIN_PATH=/home/lowry/Documents/LoopCode/machine_learning_module/src/main.py
-  export PY_OUTPUT_DIR_PATH=$PWD/obj-loop/temp/py.log
+  export PY_OUTPUT_DIR_PATH=$PWD/obj-afl/temp/py.log
   export PRE_TRAIN_AFL_OUT_DIR_NAME=out_afl_pre_train
-  export MODEL_PATH=$PWD/obj-loop/temp/jasper.model.lowry
+  export MODEL_PATH=$PWD/obj-afl/temp/libxml2.model.lowry
 
   ./autogen.sh
   make distclean
@@ -63,16 +63,16 @@ main() {
 
   # -p 启动python, -k fuzz多长时间
   for ((i = 1; i <= $1; i++)); do
-    $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout & # 后台运行py
-    $AFL/afl-fuzz -p -k 720 -l $line -m none -i in -o $SUBJECT/obj-afl/out$i ./xmllint --valid --recover @@
+#    $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout & # 后台运行py
+#    $AFL/afl-fuzz -p -k 720 -l $line -m none -i in -o $SUBJECT/obj-afl/out$i ./xmllint --valid --recover @@
     # 第一次afl，用于生成模型的初始测试用例
-    $AFL/afl-fuzz -k 1 -l $line -m none -i in -o /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out_afl_origin.jpg --input @@
+    $AFL/afl-fuzz -k 1 -l $line -m none -i in -o /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME ./xmllint --valid --recover @@
     #第一次py，预训练模型
-    $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-save-path $MODEL_PATH --pre-train-testcase /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME
+    $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-save-path $MODEL_PATH --pre-train-testcase /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME
     # 正式运行afl-model
     $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH & # 后台运行py
-    sleep 5s
-    $AFL/afl-fuzz -p -y -k 240 -l $line -e 10 -m none -i /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+    sleep 3s
+    $AFL/afl-fuzz -p -y -k 720 -l $line -e 10 -m none -i /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-afl/out$i ./xmllint --valid --recover @@
   done
 }
 
