@@ -14,11 +14,14 @@ def fusion(summaries, summaries_path):
             indexes_and_probabilities[index] = temp_probability
     indexes_and_probabilities = sorted(indexes_and_probabilities.items(), key=lambda x: x[1])
     file_path = f"{summaries_path}/fusion.csv"
+    origin_prob_path = f"{summaries_path}/origin.csv"
     with open(file_path, "w") as f:
-        prob_start = 1
-        for index, probability in indexes_and_probabilities:
-            f.write(str(index) + "," + str(prob_start) + "\n")
-            prob_start += 1
+        with open(origin_prob_path, "w") as o:
+            prob_start = 1
+            for index, probability in indexes_and_probabilities:
+                f.write(str(index) + "," + str(prob_start) + "\n")
+                prob_start += 1
+                o.write((str(index) + "," + str(probability) + "\n"))
     return file_path
 
 
@@ -57,7 +60,7 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
             else:
                 raise Exception("不支持的隐藏层数量")
             c = cdist(points, points, 'mahalanobis')  # 计算每个点到其他点的距离
-            summary.append((j, numpy.triu(c, k=0).sum()))
+            summary.append((j, numpy.triu(c, k=0).sum()))  # 取上三角矩阵
         summary.sort(key=lambda x: x[1], reverse=True)  # 降序排列，最前面的是最具有影响力的
         if printer:
             loguru.logger.debug(summary[:top_k])

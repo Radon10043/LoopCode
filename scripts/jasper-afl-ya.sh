@@ -1,4 +1,5 @@
 # Jasper
+rm -rf SRC
 git clone https://github.com/mdadams/jasper.git SRC
 
 rm -rf jasper-3.0.3
@@ -57,7 +58,7 @@ $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-sav
 # 正式运行afl-model
 $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH & # 后台运行py
 sleep 5s
-$AFL/afl-fuzz -p -y -k 240 -l $line -e 10 -m none -i /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+$AFL/afl-fuzz -p -y -k 240 -l $line -e 0 -m none -i /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
 
 # 独立运行原版afl
 #$AFL/afl-fuzz -k 60 -l $line -m none -i in_afl_origin -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out_afl_origin /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out_afl_origin.jpg --input @@

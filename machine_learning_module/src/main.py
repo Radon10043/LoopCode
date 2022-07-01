@@ -53,7 +53,6 @@ def test_case_type_2():
     return train_dataset_generator.gen_train_dataset_with_bytes_array(max_feature_length=max_features)
 
 
-@loguru.logger.catch()
 def start_module(printer=True, test_case_path=None, pre_train_model_save_path=None):
     if test_case_path is None:
         loguru.logger.error("模型读取的测试用例地址为空，请检查")
@@ -101,25 +100,29 @@ def get_args():
     parser.add_argument("--pre-train-testcase", help="预训练时，模型的训练材料的本地地址", type=str)
     parser.add_argument("--model-save-path", help="预训练时，模型的保存地址", type=str)
     parser.add_argument("--model-load-path", help="非预训练模式时，预训练模型的地址，后续更新迭代模型也在该地址中", type=str)
+    parser.add_argument("--log-level", help="日志的输出等级", type=str, default="INFO")  # 1:debug 2:info
     return parser.parse_args()
 
 
-"""
-命令行示例
-python main.py --log-path where_is_log --skip-log-stdout
-       0           
-"""
-if __name__ == '__main__':
+@loguru.logger.catch()
+def main():
     loguru.logger.info("start py module...ok")
     time_used = []
     if SOCKET_MODE:
         args = get_args()
         if args.skip_log_stdout:
             loguru.logger.remove()
+        else:
+            loguru.logger.level("INFO")
         timestamp = time.time()
         log_label = "pre_train" if args.pre_train else "afl"
         log_path = os.path.join(args.log_path, f"{log_label}_{timestamp}_py.log")
-        loguru.logger.add(log_path)
+        if args.log_level in ['INFO', 'DEBUG']:
+            loguru.logger.info(f"设置日志等级为{args.log_level}")
+            loguru.logger.add(log_path, level=args.log_level)
+        else:
+            loguru.logger.warning("参数--log-level设置错误")
+            loguru.logger.add(log_path, level="INFO")
         if args.pre_train:  # 预训练模式
             loguru.logger.info("此次为预训练模式")
             if args.model_save_path is None:
@@ -128,7 +131,8 @@ if __name__ == '__main__':
             if args.pre_train_testcase is None:
                 loguru.logger.error("缺少预训练时的测试用例地址")
                 raise Exception("缺少预训练时的测试用例地址")
-            start_module(printer=True, test_case_path=args.pre_train_testcase,
+            start_module(printer=True,
+                         test_case_path=args.pre_train_testcase,
                          pre_train_model_save_path=args.model_save_path)
             loguru.logger.info(f"预训练完成，预训练的模型位置为{args.model_save_path}")
             loguru.logger.info("正在处理预训练数据文件夹里的数据，删掉无用测试用例...")
@@ -163,3 +167,12 @@ if __name__ == '__main__':
                         f"\tTOTAL TRAIN TESTCASE SIZE: {total_train_testcase_size}\n========")
     else:  # 不启用SOCKET，单机测试
         start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")
+
+
+"""
+命令行示例
+python main.py --log-path where_is_log --skip-log-stdout
+       0           
+"""
+if __name__ == '__main__':
+    main()
