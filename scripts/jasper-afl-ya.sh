@@ -1,7 +1,12 @@
 # Jasper
-git clone https://github.com/mdadams/jasper.git SRC
-
+rm -rf SRC
 rm -rf jasper-3.0.3
+rm -rf jasper-3.0.3-gcc
+rm -rf obj-loop
+git clone https://github.com/mdadams/jasper.git SRC
+echo "run gcc first"
+./jasper-afl-gcc-version-ya.sh
+
 cp -r SRC jasper-3.0.3
 cd jasper-3.0.3
 git checkout 020ec588 # version-3.0.3
@@ -45,8 +50,8 @@ CFLAGS="$ADDITIONAL" CXXFLAGS="$ADDITIONAL" cmake ..
 make clean all
 
 mkdir in
-#cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
-echo "" >in/in.jp2
+cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
+#echo "" >in/in.jp2
 
 # echo core >/proc/sys/kernel/core_pattern
 
@@ -55,9 +60,9 @@ $AFL/afl-fuzz -k 1 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/jasper
 # 第一次py，预训练模型
 $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-save-path $MODEL_PATH --pre-train-testcase /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME
 # 正式运行afl-model
-$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH & # 后台运行py
+$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/yagol/LoopCode/scripts/jasper-3.0.3-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
 sleep 5s
-$AFL/afl-fuzz -p -y -k 240 -l $line -e 10 -m none -i /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
+$AFL/afl-fuzz -p -y -k 240 -l $line -t 1000+ -e 0 -m none -i /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/app/jasper --output /tmp/out.jpg --input @@
 
 # 独立运行原版afl
 #$AFL/afl-fuzz -k 60 -l $line -m none -i in_afl_origin -o /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out_afl_origin /home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/src/app/jasper --output /tmp/out_afl_origin.jpg --input @@
