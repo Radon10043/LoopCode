@@ -1,4 +1,6 @@
 # libming:swftophp
+rm -rf SRC
+rm -rf LOOP
 git clone https://github.com/libming/libming.git SRC
 
 cp -r SRC LOOP
@@ -45,7 +47,7 @@ fi
 mkdir in
 wget -P in http://condor.depaul.edu/sjost/hci430/flash-examples/swf/bumble-bee1.swf
 # 原版
-# $AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/out /home/yagol/PycharmProjects/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
+ $AFL/afl-fuzz -k 60 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/LOOP/obj-loop/out /home/yagol/LoopCode/scripts/LOOP/obj-loop/util/swftophp @@
 # 模型
-$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout & # 后台运行py
-$AFL/afl-fuzz -p -k 30 -l $line -e 10 -m none -i in -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/util/swftophp @@
+#$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout & # 后台运行py
+#$AFL/afl-fuzz -p -k 30 -l $line -e 10 -m none -i in -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/util/swftophp @@
