@@ -24,6 +24,7 @@ from train_dataset_generator import read_afl_testcase
 from weight_diff_calculate import calculate_weight_diff_for_each_output
 import utils
 import real_time_data as rta
+import keep_showmap
 
 max_features = 100
 PORT = 12012  # UDP端口
@@ -101,6 +102,9 @@ def get_args():
     parser.add_argument("--model-save-path", help="预训练时，模型的保存地址", type=str)
     parser.add_argument("--model-load-path", help="非预训练模式时，预训练模型的地址，后续更新迭代模型也在该地址中", type=str)
     parser.add_argument("--log-level", help="日志的输出等级", type=str, default="INFO")  # 1:debug 2:info
+    parser.add_argument("--gcc-version-bin", help="gcc编译出来的可执行被测文件地址", type=str)
+    parser.add_argument("--append-args", help="被测文件的参数", type=str)
+    parser.add_argument("--testcase-dir-path", help="测试用例的输出位置，用于监控路径覆盖情况", type=str)
     return parser.parse_args()
 
 
@@ -109,6 +113,7 @@ def main():
     loguru.logger.info("start py module...ok")
     time_used = []
     if SOCKET_MODE:
+        utils.kill_process_by_socket_port(PORT)
         args = get_args()
         if args.skip_log_stdout:
             loguru.logger.remove()
@@ -143,14 +148,15 @@ def main():
             if args.model_load_path is not None:
                 load_model(args.model_load_path)
                 loguru.logger.info(f"成功加载预训练模型{args.model_load_path}")
-            utils.kill_process_by_socket_port(PORT)
             train_times = 0
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # internet UDP模式
             address = ("127.0.0.1", PORT)
             server_socket.bind(address)  # 绑定开启socket端口
             loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
-            t1 = Thread(target=rta.recordData, args=())
-            t1.start()
+            # t1 = Thread(target=rta.recordData, args=())
+            # t1.start()
+            showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
+            showmap_thread.start()
             while True:
                 receive_data, client = server_socket.recvfrom(1024)
                 data = receive_data.decode("utf-8")
