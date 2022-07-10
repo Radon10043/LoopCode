@@ -59,4 +59,4 @@ def runner_test(testcase_dir, binary_file_path, base_cmd):
             print(testcase_path, len(edge))
 
 
-runner_test("/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out", "/home/yagol/LoopCode/scripts/jasper-3.0.3-gcc/obj-loop/src/app/jasper", "--output /tmp/out_afl_origin.jpg --input")
+# runner_test("/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out", "/home/yagol/LoopCode/scripts/jasper-3.0.3-gcc/obj-loop/src/app/jasper", "--output /tmp/out_afl_origin.jpg --input")
