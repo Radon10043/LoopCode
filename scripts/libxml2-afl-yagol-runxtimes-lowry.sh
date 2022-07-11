@@ -72,7 +72,7 @@ main() {
     # 正式运行afl-model
     $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH & # 后台运行py
     sleep 3s
-    $AFL/afl-fuzz -p -y -k 720 -l $line -e 10 -m none -i /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-afl/out$i ./xmllint --valid --recover @@
+    $AFL/afl-fuzz -p -y -k 720 -l $line -m none -i /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME/queue -o $SUBJECT/obj-afl/out$i ./xmllint --valid --recover @@
   done
 }
 
