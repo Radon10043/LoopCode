@@ -29,3 +29,7 @@ def trim_pre_train_testcase(pre_train_testcase):
             for file_name in files:
                 file_path = os.path.join(root, file_name)
                 shutil.copy(file_path, seed_path)
+
+
+def get_top_k_edge_or_bb():
+    pass

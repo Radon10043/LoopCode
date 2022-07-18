@@ -2,7 +2,7 @@
 获得想要获取的指定label，也就是循环或者基本快的位置，用List保存
 
 """
-from typing import List, Tuple
+from typing import List
 
 
 def get_wanted_label_with_low_coverage(coverage_datas, size) -> List[int]:

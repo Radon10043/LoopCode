@@ -27,9 +27,11 @@ def runner(testcase_dir, binary_file_path, base_cmd, save_path):
                     continue
                 visited_path.add(testcase_path)
                 cmd = f"{AFL_SHOWMAP_BINARY_PATH} -q -e -o /dev/stdout -m 512 -t 500 {binary_file_path} {base_cmd} {testcase_path}"
+                loguru.logger.debug(cmd)
                 loguru.logger.debug(f"分析路径CMD:{cmd}")
                 out = os.popen(cmd).readlines()
                 for o in out:
+                    # TODO o.split(":")[0]  064756:1
                     edge.add(o.strip())
         with open(save_path, "a") as save_file:
             save_file.write(f"time: {timer}, edge: {len(edge)}\n")
@@ -57,6 +59,5 @@ def runner_test(testcase_dir, binary_file_path, base_cmd):
             for o in out:
                 edge.add(o.strip())
             print(testcase_path, len(edge))
-
 
 # runner_test("/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out", "/home/yagol/LoopCode/scripts/jasper-3.0.3-gcc/obj-loop/src/app/jasper", "--output /tmp/out_afl_origin.jpg --input")

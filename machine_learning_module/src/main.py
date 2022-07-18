@@ -32,6 +32,7 @@ SOCKET_MODE = True  # 是否启用SOCKET模式，不启用就是单机测试模�
 hidden_layer_sizes = (3, 3, 3,)  # 隐藏层
 py_output_dir_name = 'py_out'
 total_train_testcase_size = 0
+bb_top = 10
 
 
 def test_case_type_1():
@@ -54,7 +55,7 @@ def test_case_type_2():
     return train_dataset_generator.gen_train_dataset_with_bytes_array(max_feature_length=max_features)
 
 
-def start_module(printer=True, test_case_path=None, pre_train_model_save_path=None):
+def start_module(printer=True, test_case_path=None, pre_train_model_save_path=None, edge_select=False):
     if test_case_path is None:
         loguru.logger.error("模型读取的测试用例地址为空，请检查")
         raise Exception("模型读取的测试用例地址为空，请检查")
@@ -71,16 +72,35 @@ def start_module(printer=True, test_case_path=None, pre_train_model_save_path=No
     total_train_testcase_size += x_data.shape[0]
     feature_size = x_data.shape[1]
     label_size = y_data.shape[1]
-    model = train_sk_model(
-        x_data,  # 特征
-        y_data,  # 标签
-        is_test=False,  # 是否切割数据集，用于输出f1值
-        partial_fit=not is_first_read,
-        pre_train_model_save_path=pre_train_model_save_path
-    )
+    if edge_select:
+        loguru.logger.info("边选择模式")
+        bb_list_wanted = get_wanted_label_with_low_coverage(
+            coverage_datas=y_data,
+            size=bb_top
+        )  # 根据覆盖情况，获得最差的size个基本块的序号
+        loguru.logger.info(f"选择的前{bb_top}个边是：{bb_list_wanted}")
+        model = train_sk_model(
+            x_data,  # 特征
+            y_data[:, bb_list_wanted],  # 标签
+            is_test=False,
+            partial_fit=False,
+            pre_train_model_save_path=pre_train_model_save_path
+        )
+        loguru.logger.info("边选择模型训练成功")
+    else:
+        model = train_sk_model(
+            x_data,  # 特征
+            y_data,  # 标签
+            is_test=False,  # 是否切割数据集，用于输出f1值
+            partial_fit=not is_first_read,
+            pre_train_model_save_path=pre_train_model_save_path
+        )
+        bb_list_wanted = get_wanted_label_with_low_coverage(
+            coverage_datas=y_data,
+            size=bb_top
+        )  # 根据覆盖情况，获得最差的size个基本块的序号
     if pre_train_model_save_path is not None:
         return
-    bb_list_wanted = get_wanted_label_with_low_coverage(y_data, size=10)  # 根据覆盖情况，获得最差的size个基本块的序号
     return calculate_weight_diff_for_each_output(
         feature_size,  # 特征的长度
         label_size,  # 标签的长度
@@ -90,6 +110,7 @@ def start_module(printer=True, test_case_path=None, pre_train_model_save_path=No
         label_list_wanted=bb_list_wanted,  # 想要优先覆盖的基本块的序号
         summaries_path=os.path.join(test_case_path, py_output_dir_name),  # 输出的文件夹，会自动创建fusion.csv
         top_k=None,  # 只输出前top_k个字节序列,None表示全部输出，也就是输出feature_size个
+        edge_select=edge_select
     )
 
 
@@ -105,6 +126,7 @@ def get_args():
     parser.add_argument("--gcc-version-bin", help="gcc编译出来的可执行被测文件地址", type=str)
     parser.add_argument("--append-args", help="被测文件的参数", type=str)
     parser.add_argument("--testcase-dir-path", help="测试用例的输出位置，用于监控路径覆盖情况", type=str)
+    parser.add_argument("--edge-select", help="模型输出层为预选择的边或基本块", action="store_true")
     return parser.parse_args()
 
 
@@ -138,7 +160,7 @@ def main():
                 raise Exception("缺少预训练时的测试用例地址")
             start_module(printer=True,
                          test_case_path=args.pre_train_testcase,
-                         pre_train_model_save_path=args.model_save_path)
+                         pre_train_model_save_path=args.model_save_path, edge_select=args.edge_select)
             loguru.logger.info(f"预训练完成，预训练的模型位置为{args.model_save_path}")
             loguru.logger.info("正在处理预训练数据文件夹里的数据，删掉无用测试用例...")
             utils.trim_pre_train_testcase(args.pre_train_testcase)
@@ -163,7 +185,7 @@ def main():
                 loguru.logger.info(f"receive data: {data}")
                 if data.startswith("/"):
                     time1 = time.time()
-                    res = start_module(printer=False, test_case_path=data)  # 返回值是fusion的文件地址
+                    res = start_module(printer=False, test_case_path=data, edge_select=args.edge_select)  # 返回值是fusion的文件地址
                     server_socket.sendto(res.encode("utf-8"), client)
                     time_used.append(time.time() - time1)
                     train_times += 1
