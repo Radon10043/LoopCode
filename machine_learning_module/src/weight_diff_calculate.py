@@ -28,7 +28,8 @@ def fusion(summaries, summaries_path):
 def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_layer_sizes, clf, top_k=None,
                                           printer=False,
                                           label_list_wanted=None,
-                                          summaries_path=None):
+                                          summaries_path=None,
+                                          edge_select=False):
     """
     计算权重差异距离累加和
 
@@ -40,6 +41,7 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     :param printer:
     :param label_list_wanted: 想要覆盖的基本快，也就是关注的基本快的序号
     :param summaries_path:
+    :param edge_select:
     :return:
     """
     if not os.path.exists(summaries_path):
@@ -48,8 +50,10 @@ def calculate_weight_diff_for_each_output(feature_sizes, label_sizes, hidden_lay
     summaries = []
     if top_k is None:
         top_k = feature_sizes
+    if edge_select:
+        label_sizes = len(label_list_wanted)
     for i in range(label_sizes):
-        if i not in label_list_wanted:
+        if not edge_select and i not in label_list_wanted:
             continue
         summary = []  # 该输出层对应的每个输入层的权重差异距离累加和
         for j in range(feature_sizes):

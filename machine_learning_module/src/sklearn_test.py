@@ -60,6 +60,5 @@ def train_sk_model(x_data, y_data, is_test: bool = False, partial_fit=False, pre
                 time1 = time.time()
                 joblib.dump(clf, pre_train_model_save_path)
                 time2 = time.time()
-                loguru.logger.info(
-                    f"模型保存到{pre_train_model_save_path}, 训练模型花费的时间为{train_end_time - train_start_time}, 保存模型花费时间为{time2 - time1}")
+                loguru.logger.info(f"模型保存到{pre_train_model_save_path}, 训练模型花费的时间为{train_end_time - train_start_time}, 保存模型花费时间为{time2 - time1}")
     return clf

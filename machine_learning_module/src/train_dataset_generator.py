@@ -126,7 +126,8 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None):
                             else:
                                 x = x + (max_feature_length - len(x)) * b'\x00'
                             x_data.append(x)
-                        with open(coverage_path, "r") as f:
+                        with open(coverage_path, "r") as f:  # TODO: use afl-showmap
+                            # TODO: keep_showmap.py
                             temp = []
                             lines = f.readlines()
                             for i, line in enumerate(lines):  # 只读取前bb_size行
