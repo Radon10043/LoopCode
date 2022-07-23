@@ -65,11 +65,11 @@ main() {
 # 第一次afl，用于生成模型的初始测试用例
   $AFL/afl-fuzz -k 1 -l $line -m none -i in -o /home/yagol/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME /home/yagol/LoopCode/scripts/libxml2-2.9.14/obj-afl/xmllint --valid --recover @@
 # 第一次py，预训练模型
-  $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --edge-select --model-save-path $MODEL_PATH --pre-train-testcase /home/yagol/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME
+  $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-save-path $MODEL_PATH --gcc-version-bin /home/yagol/LoopCode/scripts/libxml2-2.9.14-gcc-version/obj-afl/xmllint --pre-train-testcase /home/yagol/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME
   # 正式运行afl-model
-  $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --log-level DEBUG --skip-log-stdout --edge-select --model-load-path $MODEL_PATH --gcc-version-bin /home/yagol/LoopCode/scripts/libxml2-2.9.14-gcc-version/obj-afl/xmllint --append-args "--valid --recover" --testcase-dir-path $SUBJECT/obj-afl/out & # 后台运行py
+  $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --log-level DEBUG --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/yagol/LoopCode/scripts/libxml2-2.9.14-gcc-version/obj-afl/xmllint --append-args "--valid --recover" --testcase-dir-path $SUBJECT/obj-afl/out & # 后台运行py
   sleep 5s
-  $AFL/afl-fuzz -p -y -k 240 -l $line -t 1000+ -e 0 -m none -i /home/yagol/LoopCode/scripts/libxml2-2.9.14/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-afl/out $SUBJECT/obj-afl/xmllint --valid --recover @@
+  $AFL/afl-fuzz -p -y -k 240 -l $line -t 1000+ -e 0 -m none -i /home/yagol/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME/seed -o $SUBJECT/obj-afl/out $SUBJECT/obj-afl/xmllint --valid --recover @@
 
 }
 
