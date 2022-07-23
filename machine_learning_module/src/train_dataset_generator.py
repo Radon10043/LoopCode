@@ -128,7 +128,7 @@ already_read_testcase = set()
 #                             else:
 #                                 x = x + (max_feature_length - len(x)) * b'\x00'
 #                             x_data.append(x)
-#                         with open(coverage_path, "r") as f: 
+#                         with open(coverage_path, "r") as f:
 #                             temp = []
 #                             lines = f.readlines()
 #                             for i, line in enumerate(lines):  # 只读取前bb_size行
