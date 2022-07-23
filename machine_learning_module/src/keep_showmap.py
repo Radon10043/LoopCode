@@ -3,7 +3,7 @@ import time
 
 import loguru
 
-AFL_SHOWMAP_BINARY_PATH = "/home/yagol/LoopCode/afl-yagol/afl-showmap"
+AFL_SHOWMAP_BINARY_PATH = "/home/lowry/Documents/LoopCode/afl-yagol/afl-showmap"
 
 visited_path = set()
 
@@ -11,8 +11,8 @@ visited_path = set()
 def runner(testcase_dir, binary_file_path, base_cmd, save_path):
     loguru.logger.info(f"keep_showmap.runner(Thread), {testcase_dir},{binary_file_path},{base_cmd},{save_path}")
     timer = 0
-    edge = set()
     open(save_path, "w")
+    edge = set()
     while True:
         time.sleep(60)
         timer += 1
@@ -20,6 +20,7 @@ def runner(testcase_dir, binary_file_path, base_cmd, save_path):
         for root, dirs, files in os.walk(testcase_dir):
             for file in files:
                 testcase_path = os.path.join(root, file)
+                # loguru.logger.info(f"testcase_path: {testcase_path}")
                 if testcase_path.endswith(".txt"):
                     continue
                 if testcase_path in visited_path:
@@ -31,8 +32,8 @@ def runner(testcase_dir, binary_file_path, base_cmd, save_path):
                 loguru.logger.debug(f"分析路径CMD:{cmd}")
                 out = os.popen(cmd).readlines()
                 for o in out:
-                    # TODO o.split(":")[0]  064756:1
-                    edge.add(o.strip())
+                    edge_item = o.strip()
+                    edge.add(edge_item)
         with open(save_path, "a") as save_file:
             save_file.write(f"time: {timer}, edge: {len(edge)}\n")
             loguru.logger.info(f"完成第{timer}次路径信息统计")
@@ -59,5 +60,6 @@ def runner_test(testcase_dir, binary_file_path, base_cmd):
             for o in out:
                 edge.add(o.strip())
             print(testcase_path, len(edge))
+
 
 # runner_test("/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out", "/home/yagol/LoopCode/scripts/jasper-3.0.3-gcc/obj-loop/src/app/jasper", "--output /tmp/out_afl_origin.jpg --input")

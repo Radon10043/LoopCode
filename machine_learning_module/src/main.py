@@ -25,14 +25,15 @@ from weight_diff_calculate import calculate_weight_diff_for_each_output
 import utils
 import real_time_data as rta
 import keep_showmap
+import record_out as ro
 
 max_features = 100
 PORT = 12012  # UDP端口
 SOCKET_MODE = True  # 是否启用SOCKET模式，不启用就是单机测试模式
 hidden_layer_sizes = (3, 3, 3,)  # 隐藏层
+# hidden_layer_sizes = (100, 100, 100,)  # 隐藏层
 py_output_dir_name = 'py_out'
 total_train_testcase_size = 0
-bb_top = 10
 
 
 def test_case_type_1():
@@ -55,65 +56,6 @@ def test_case_type_2():
     return train_dataset_generator.gen_train_dataset_with_bytes_array(max_feature_length=max_features)
 
 
-def start_module(printer=True, test_case_path=None, pre_train_model_save_path=None, edge_select=False):
-    if test_case_path is None:
-        loguru.logger.error("模型读取的测试用例地址为空，请检查")
-        raise Exception("模型读取的测试用例地址为空，请检查")
-    x_data, y_data, is_first_read = read_afl_testcase(
-        max_feature_length=max_features,
-        # 最大特征长度, 也就是字节序列的长度，不够的话，后面补0，够的话，取前面的
-        base_testcase_path=test_case_path,
-        # fuzz的out文件夹的地址，会自动搜寻crash/hang/ya等文件夹
-    )
-    x_data, y_data = numpy.array(x_data), numpy.array(y_data)
-    assert x_data.shape[0] == y_data.shape[0]
-    loguru.logger.debug(f"total train data size: {x_data.shape[0]}")
-    global total_train_testcase_size
-    total_train_testcase_size += x_data.shape[0]
-    feature_size = x_data.shape[1]
-    label_size = y_data.shape[1]
-    if edge_select:
-        loguru.logger.info("边选择模式")
-        bb_list_wanted = get_wanted_label_with_low_coverage(
-            coverage_datas=y_data,
-            size=bb_top
-        )  # 根据覆盖情况，获得最差的size个基本块的序号
-        loguru.logger.info(f"选择的前{bb_top}个边是：{bb_list_wanted}")
-        model = train_sk_model(
-            x_data,  # 特征
-            y_data[:, bb_list_wanted],  # 标签
-            is_test=False,
-            partial_fit=False,
-            pre_train_model_save_path=pre_train_model_save_path
-        )
-        loguru.logger.info("边选择模型训练成功")
-    else:
-        model = train_sk_model(
-            x_data,  # 特征
-            y_data,  # 标签
-            is_test=False,  # 是否切割数据集，用于输出f1值
-            partial_fit=not is_first_read,
-            pre_train_model_save_path=pre_train_model_save_path
-        )
-        bb_list_wanted = get_wanted_label_with_low_coverage(
-            coverage_datas=y_data,
-            size=bb_top
-        )  # 根据覆盖情况，获得最差的size个基本块的序号
-    if pre_train_model_save_path is not None:
-        return
-    return calculate_weight_diff_for_each_output(
-        feature_size,  # 特征的长度
-        label_size,  # 标签的长度
-        hidden_layer_sizes,  # 隐藏层
-        clf=model,  # 模型
-        printer=printer,  # 是否打印计算过程
-        label_list_wanted=bb_list_wanted,  # 想要优先覆盖的基本块的序号
-        summaries_path=os.path.join(test_case_path, py_output_dir_name),  # 输出的文件夹，会自动创建fusion.csv
-        top_k=None,  # 只输出前top_k个字节序列,None表示全部输出，也就是输出feature_size个
-        edge_select=edge_select
-    )
-
-
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-path", help="日志文件保存位置", type=str, required=True)
@@ -126,8 +68,50 @@ def get_args():
     parser.add_argument("--gcc-version-bin", help="gcc编译出来的可执行被测文件地址", type=str)
     parser.add_argument("--append-args", help="被测文件的参数", type=str)
     parser.add_argument("--testcase-dir-path", help="测试用例的输出位置，用于监控路径覆盖情况", type=str)
-    parser.add_argument("--edge-select", help="模型输出层为预选择的边或基本块", action="store_true")
     return parser.parse_args()
+
+
+def start_module(printer=True, test_case_path=None, pre_train_model_save_path=None):
+    if test_case_path is None:
+        loguru.logger.error("模型读取的测试用例地址为空，请检查")
+        raise Exception("模型读取的测试用例地址为空，请检查")
+    args = get_args()
+    x_data, y_data, is_first_read = read_afl_testcase(
+        max_feature_length=max_features,
+        # 最大特征长度, 也就是字节序列的长度，不够的话，后面补0，够的话，取前面的
+        base_testcase_path=test_case_path,
+        # fuzz的out文件夹的地址，会自动搜寻crash/hang/ya等文件夹
+        binary_file_path=args.gcc_version_bin,
+        base_cmd=args.append_args
+    )
+    x_data, y_data = numpy.array(x_data), numpy.array(y_data)
+    loguru.logger.info('x_data.shape[0]:' + str(x_data.shape[0]) + '  >>>>>  y_data.shape[0]:' + str(y_data.shape[0]))
+    assert x_data.shape[0] == y_data.shape[0]
+    loguru.logger.debug(f"total train data size: {x_data.shape[0]}")
+    global total_train_testcase_size
+    total_train_testcase_size += x_data.shape[0]
+    feature_size = x_data.shape[1]
+    label_size = y_data.shape[1]
+    model = train_sk_model(
+        x_data,  # 特征
+        y_data,  # 标签
+        is_test=False,  # 是否切割数据集，用于输出f1值
+        partial_fit=not is_first_read,
+        pre_train_model_save_path=pre_train_model_save_path
+    )
+    if pre_train_model_save_path is not None:
+        return
+    bb_list_wanted = get_wanted_label_with_low_coverage(y_data, size=10)  # 根据覆盖情况，获得最差的size个基本块的序号
+    return calculate_weight_diff_for_each_output(
+        feature_size,  # 特征的长度
+        label_size,  # 标签的长度
+        hidden_layer_sizes,  # 隐藏层
+        clf=model,  # 模型
+        printer=printer,  # 是否打印计算过程
+        label_list_wanted=bb_list_wanted,  # 想要优先覆盖的基本块的序号
+        summaries_path=os.path.join(test_case_path, py_output_dir_name),  # 输出的文件夹，会自动创建fusion.csv
+        top_k=None,  # 只输出前top_k个字节序列,None表示全部输出，也就是输出feature_size个
+    )
 
 
 @loguru.logger.catch()
@@ -160,7 +144,7 @@ def main():
                 raise Exception("缺少预训练时的测试用例地址")
             start_module(printer=True,
                          test_case_path=args.pre_train_testcase,
-                         pre_train_model_save_path=args.model_save_path, edge_select=args.edge_select)
+                         pre_train_model_save_path=args.model_save_path)
             loguru.logger.info(f"预训练完成，预训练的模型位置为{args.model_save_path}")
             loguru.logger.info("正在处理预训练数据文件夹里的数据，删掉无用测试用例...")
             utils.trim_pre_train_testcase(args.pre_train_testcase)
@@ -179,13 +163,16 @@ def main():
             # t1.start()
             showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
             showmap_thread.start()
+            print('>>>Begin>>>')
             while True:
+                print('>>>while True')
                 receive_data, client = server_socket.recvfrom(1024)
                 data = receive_data.decode("utf-8")
                 loguru.logger.info(f"receive data: {data}")
                 if data.startswith("/"):
+                    print('>>>data.startswith')
                     time1 = time.time()
-                    res = start_module(printer=False, test_case_path=data, edge_select=args.edge_select)  # 返回值是fusion的文件地址
+                    res = start_module(printer=False, test_case_path=data)  # 返回值是fusion的文件地址
                     server_socket.sendto(res.encode("utf-8"), client)
                     time_used.append(time.time() - time1)
                     train_times += 1
