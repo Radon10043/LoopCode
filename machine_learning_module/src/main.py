@@ -25,7 +25,7 @@ from weight_diff_calculate import calculate_weight_diff_for_each_output
 import utils
 import real_time_data as rta
 import keep_showmap
-import record_out as ro
+# import record_out as ro
 
 max_features = 100
 PORT = 12012  # UDP端口
