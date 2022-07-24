@@ -3,7 +3,7 @@ import time
 
 import loguru
 
-AFL_SHOWMAP_BINARY_PATH = "/home/lowry/Documents/LoopCode/afl-yagol/afl-showmap"
+AFL_SHOWMAP_BINARY_PATH = "/home/yagol/LoopCode/afl-yagol/afl-showmap"
 
 visited_path = set()
 

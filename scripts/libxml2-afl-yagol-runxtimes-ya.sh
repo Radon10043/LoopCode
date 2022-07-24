@@ -29,7 +29,7 @@ main() {
     echo -e "\033[1;47;31mError\033[0m: Hum? I cant find afl-clang-fast in $AFL."
     exit
   fi
-
+q
   export SUBJECT=$PWD
   export TMP_DIR=$PWD/obj-afl/temp
   export ADDITIONAL="-outdir=$TMP_DIR"

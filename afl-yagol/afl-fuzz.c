@@ -4344,6 +4344,9 @@ static void show_stats(void) {
   /* Do some bitmap stats. */
 
   t_bytes = count_non_255_bytes(virgin_bits);
+  FILE* temp_ya_file;
+  temp_ya_file=fopen("virgin_bits.txt","a+");
+  fprintf(temp_ya_file,"%llu : %u\n",get_cur_time(),t_bytes);
   t_byte_ratio = ((double)t_bytes * 100) / MAP_SIZE;
 
   if (t_bytes) 
