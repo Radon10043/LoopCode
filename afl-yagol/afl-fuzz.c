@@ -3031,6 +3031,7 @@ static void perform_dry_run(char** argv) {
 
     }
 
+#ifdef OUTPUT_COV
     /* Radon: 保存初始种子测试用例的覆盖信息 */
     u8* ocov_fn = alloc_printf("%s_cov.txt", q->fname);
     s32 ocov_fd = open(ocov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -3069,6 +3070,7 @@ static void perform_dry_run(char** argv) {
 
     fclose(ocov_f);
     /* ***************************** */
+#endif
 
     if (q->var_behavior) WARNF("Instrumentation output varies across runs.");
 
@@ -3334,6 +3336,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     ck_write(ya_fd, mem, len, ya_fn);
     close(ya_fd);
 
+#ifdef OUTPUT_COV
     /* Radon: 保存每个测试用例的覆盖信息 */
     u8* cov_fn = alloc_printf("%s_cov.txt", ya_fn);  // like: ya/id:1_1_cov.txt
     s32 cov_fd = open(cov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -3372,6 +3375,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
     fclose(cov_f);
     /* ***************************** */
+#endif
 
     ck_free(ya_fn);
 
@@ -3390,6 +3394,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
             ck_write(ya_more_fd, mem, len, ya_more_fn);
             close(ya_more_fd);
 
+#ifdef OUTPUT_COV
             /* Radon: 保存每个测试用例的覆盖信息 */
             u8* cov_more_fn = alloc_printf("%s_cov.txt", ya_more_fn);
             s32 cov_more_fd = open(cov_more_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -3428,6 +3433,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
             fclose(cov_more_f);
             /* ***************************** */
+#endif
 
             ck_free(ya_more_fn);
 
@@ -3481,7 +3487,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     ck_write(fd, mem, len, fn);
     close(fd);
 
-#if 1
+#ifdef OUTPUT_COV
     /* Radon: 保存到队列的同时保存测试用例的覆盖信息 */
     u8* qcov_fn = alloc_printf("%s_cov.txt", fn);
     s32 qcov_fd = open(qcov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -3650,7 +3656,7 @@ keep_as_crash:
   ck_write(fd, mem, len, fn);
   close(fd);
 
-#if 1
+#ifdef OUTPUT_COV
   /* Radon: 保存触发crash的或超时的测试用例的覆盖信息 */
   u8* icov_fn = alloc_printf("%s_cov.txt", fn);   // icov_fn: interesting cover file name
   s32 icov_fd = open(icov_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
