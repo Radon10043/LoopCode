@@ -2,7 +2,7 @@
 # @Author: Radon
 # @Date: 2022-06-14 11:38:30
 # @LastEditors: Radon
-# @LastEditTime: 2022-07-21 15:47:42
+# @LastEditTime: 2022-07-25 12:43:21
 # @Description: libxml2, afl
 ###
 
@@ -13,10 +13,10 @@
 download() {
   git clone https://gitlab.gnome.org/GNOME/libxml2 SRC
 
-  rm -rf libxml2-2.9.14
-  cp -r SRC libxml2-2.9.14
-  cd libxml2-2.9.14
-  git checkout v2.9.14
+  rm -rf libxml2-2.9.10
+  cp -r SRC libxml2-2.9.10
+  cd libxml2-2.9.10
+  git checkout v2.9.10
 }
 
 afl() {
@@ -29,7 +29,6 @@ afl() {
 
   export SUBJECT=$PWD
   export TMP_DIR=$PWD/obj-afl/temp
-  export ADDITIONAL="-outdir=$TMP_DIR"
 
   ./autogen.sh
   make distclean
@@ -43,7 +42,7 @@ afl() {
 
   for ((i = 1; i <= $1; i++)); do
     # timeout?
-    $AFL/afl-fuzz -l $line -m none -i in -o out$i ./xmllint --valid --recover @@
+    $AFL/afl-fuzz -m none -i in -o out$i ./xmllint --valid --recover @@
   done
 }
 
