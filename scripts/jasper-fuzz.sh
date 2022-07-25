@@ -2,7 +2,7 @@
 # @Author: Radon
 # @Date: 2022-05-20 18:28:34
 # @LastEditors: Radon
-# @LastEditTime: 2022-07-21 15:47:49
+# @LastEditTime: 2022-07-25 12:43:35
 # @Description: jasper fuzz script
 ###
 
@@ -13,10 +13,10 @@
 download() {
   git clone https://github.com/mdadams/jasper.git JASPER-SRC
 
-  rm -rf jasper-3.0.3
-  cp -r JASPER-SRC jasper-3.0.3
-  cd jasper-3.0.3
-  git checkout 020ec588 # version-3.0.3
+  rm -rf jasper-2.0.21
+  cp -r JASPER-SRC jasper-2.0.21
+  cd jasper-2.0.21
+  git checkout 020ec588 # version-2.0.21
 }
 
 ###
@@ -43,7 +43,9 @@ afl() {
 
   mkdir in
   # cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
-  echo "" >in/in.jp2
+  # echo "" >in/in.jp2
+  wget -P in https://github.com/Radon10043/myfuzz-afl2.52b/raw/master/testcases/my/jp2/not.jp2
+  wget -P in https://github.com/Radon10043/myfuzz-afl2.52b/raw/master/testcases/my/jp2/not_alpha.jp2
 
   for ((i = 1; i <= $1; i++)); do
     # timeout [x] $AFL/afl-fuzz ?

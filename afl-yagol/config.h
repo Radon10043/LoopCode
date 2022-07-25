@@ -36,6 +36,10 @@
  *                                                    *
  ******************************************************/
 
+/* Radon: output cov.txt? */
+
+#define OUTPUT_COV
+
 /* Comment out to disable terminal colors (note that this makes afl-analyze
    a lot less nice): */
 
