@@ -4422,12 +4422,12 @@ static void show_stats(void) {
   if(enable_py){
       sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
           " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" :
-          cYEL "american fuzzy lop (Radon's CFL) (Model)", use_banner);
+          cYEL "american fuzzy lop (Yagol's YFL) (Model)", use_banner);
   }
   else{
       sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
           " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" :
-          cYEL "american fuzzy lop (Radon's CFL)", use_banner);
+          cYEL "american fuzzy lop (Yadon's YFL)", use_banner);
   }
 
 
