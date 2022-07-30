@@ -24,6 +24,7 @@ from train_dataset_generator import read_afl_testcase
 from weight_diff_calculate import calculate_weight_diff_for_each_output
 import utils
 import keep_showmap
+import real_time_data as rta
 
 max_features = 100
 PORT = 12012  # UDP端口

@@ -13,7 +13,7 @@ import bytes_converter
 import numpy as np
 
 dataset_path = '../testcase.csv'
-AFL_SHOWMAP_BINARY_PATH = "/home/yagol/LoopCode/afl-yagol/afl-showmap"
+AFL_SHOWMAP_BINARY_PATH = "/home/lowry/Documents//LoopCode/afl-yagol/afl-showmap"
 
 
 def gen_train_dataset_with_bits_array(max_feature_length=100):
@@ -228,7 +228,8 @@ def arrange_list(a_list, max_size):
 
 
 def check_data(data):
-    save_path = "/home/yagol/LoopCode/scripts/libxml2-2.9.14/obj-afl/temp/py.log/edge_content.info"
+    # save_path = "/home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/temp/py.log/edge_content.info"
+    save_path = "/home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/temp/py.log/edge_content.info"
     with open(save_path, "a") as save_file:
         save_file.write("output showmapt data: >>>\n")
         # save_file.write(f"edge_length: {str(data[0])}\n")

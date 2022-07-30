@@ -8673,11 +8673,11 @@ int main(int argc, char** argv) {
     // yagol py module
     if (enable_py) //根据afl的参数，是否开启py模块
     {
-    if (pre_train_model){  //预训练模式，那么模型已经加载在py中，可以直接开启py模式
-        if (-1 == start_py_module()){
-                  FATAL("start_py_module failed");
-           }
-    }
+        if (pre_train_model){  //预训练模式，那么模型已经加载在py中，可以直接开启py模式
+            if (-1 == start_py_module()){
+                      FATAL("start_py_module failed");
+               }
+        }
 
     }
 #endif

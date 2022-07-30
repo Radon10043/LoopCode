@@ -6,7 +6,7 @@ mkdir ob
 mkdir obj-afl
 mkdir obj-afl/temp
 
-export AFL=/home/yagol/LoopCode/afl-yagol
+export AFL=/home/lowry/Documents/LoopCode/afl-yagol
 export CC=$AFL/afl-gcc
 export CXX=$AFL/afl-g++
 ./autogen.sh
