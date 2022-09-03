@@ -188,8 +188,8 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, binary_fi
                             # TODO: keep_showmap.py
                             edge = []
                             cmd = f"{AFL_SHOWMAP_BINARY_PATH} -q -e -o /dev/stdout -m 512 -t 500 {binary_file_path} {base_cmd} {testcase_bin_path} "
-                            loguru.logger.debug(cmd)
-                            loguru.logger.debug(f"分析路径CMD:{cmd}")
+                            # loguru.logger.debug(cmd)
+                            # loguru.logger.debug(f"分析路径CMD:{cmd}")
                             out = os.popen(cmd).readlines()
                             for o in out:
                                 edge_item = int(o.split(':')[0])
@@ -202,9 +202,9 @@ def read_afl_testcase(max_feature_length=100, base_testcase_path=None, binary_fi
                         os.remove(testcase_bin_path)
                         loguru.logger.debug(f"ya的测试用例被删除: {testcase_bin_path}")
                     os.remove(coverage_path)  # 清空所有的cov 0/1信息，训练过后就没有用了
-                    loguru.logger.debug(f"测试用例覆盖信息被删除: {coverage_path}")
+                    # loguru.logger.debug(f"测试用例覆盖信息被删除: {coverage_path}")
     y_data = arrange_list(edge_list, max_edge + 1)
-    check_data(len(y_data))
+    # check_data(len(y_data))
     loguru.logger.debug(f"该批次最长测试用例长度为: {longest_testcase_length}")
 
     return x_data, y_data, is_first_read

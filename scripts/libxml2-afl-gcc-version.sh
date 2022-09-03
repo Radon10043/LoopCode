@@ -1,17 +1,19 @@
-cp -r SRC libxml2-2.9.14-gcc-version
+# libxml2
 
-cd libxml2-2.9.14-gcc-version
+cp -r SRC libxml2-2.9.14-gcc
+cd libxml2-2.9.14-gcc
 git checkout v2.9.14
-mkdir ob
+
 mkdir obj-afl
 mkdir obj-afl/temp
 
 export AFL=/home/lowry/Documents/LoopCode/afl-yagol
+export SUBJECT=$PWD
 export CC=$AFL/afl-gcc
 export CXX=$AFL/afl-g++
-./autogen.sh
-make distclean
+export LDFLAGS=-lpthread
+# 1st build
 cd obj-afl
-../configure --disable-shared --prefix=$(pwd)
+cmake ..
 make all
 exit
