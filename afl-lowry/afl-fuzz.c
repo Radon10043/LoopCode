@@ -315,6 +315,11 @@ static u64 model_skip_byte_size = 0;          /* Yagol: 被模型跳过的字节
 static u64 model_choose_byte_size = 0;        /* lowry: 被模型选中的字节总数量                                                      */
 static s32 checking_byte_cur=0;                 /* Yagol: 临时记录需要被检测的字节位置下标，为什么多出这个变量？因为想和原版afl区分，万一原版用它干了别的，不影响他 */
 static u8 pre_train_model =0;                /* Yagol: 是否为预训练模型存在的模式,是则直接启动py   */
+char good_seeds_name[10000][100];           /* lowry: 被选中的种子文件名 */
+int good_seeds_length = 0;                  /* lowry: 被选中的种子长度 */
+char seed_name[200];                        /* lowry: 即将对比的种子文件名 */
+char *token;                                /* 分割出种子文件名的缓存变量 */
+
 
 /* Interesting values, as per config.h */
 
@@ -390,6 +395,29 @@ int update_prob_mapper(char *fusion_path)
   return 0;
 }
 
+/* 根据py输出的good_seeds，读取该文件内容供afl做判断 */
+int update_good_seeds(char *good_seeds_path)
+{
+  FILE *in = fopen(good_seeds_path, "r"); //打开py输出的权重文件
+
+  if (in == NULL) {
+    perror("file can not open or is null");
+    exit(1); //文件打不开，退出整个程序
+    return -1; // 好像无意义了，因为退出了？
+  }
+  char buf[1024]; //用于读取文件的一行
+  memset(good_seeds_name, 0, sizeof good_seeds_name);   // 清空字符串列表
+  good_seeds_length = 0;                            // 字符串长度初始化为0
+
+  while (fgets(buf, sizeof(buf), in) != NULL) {   //是否读取到文件末尾了
+    strcpy(good_seeds_name[good_seeds_length], buf);       // 将读出来的种子文件名插入到列表中
+    good_seeds_length ++;                           // 长度+1
+  }
+
+  fclose(in); //关闭文件
+  return 0;
+}
+
 
 /* 开启py模块，用于向py发送信号 */
 
@@ -433,12 +461,13 @@ int start_py_module()
   close(sock_fd);                               //关闭接口
   if (recv_buf[0] == '/') {                     //如果接收的第一个字符是文件分隔符，也就是'/'，那说明内容也是正确的
     printf("py end success!\n");                //向屏幕输出，告诉用户启动了py
-    if (0 == update_prob_mapper(recv_buf)) {    //根据权重文件，更新afl内部的权重数组
-      enable_base_prob = 1;                     //更新成功，那么全局启动py模块
-    }
-    else {
-      enable_base_prob = 0; //更新失败，关闭py模块
-    }
+    update_good_seeds(recv_buf);                // 更新good_seeds文件
+//    if (0 == update_prob_mapper(recv_buf)) {    //根据权重文件，更新afl内部的权重数组
+//      enable_base_prob = 1;                     //更新成功，那么全局启动py模块
+//    }
+//    else {
+//      enable_base_prob = 0; //更新失败，关闭py模块
+//    }
     return 0;
   } else {
     return -1; //发送py启动信号，失败
@@ -8771,7 +8800,21 @@ int main(int argc, char** argv) {
 
     if (stop_soon) break;
 
-    queue_cur = queue_cur->next;
+    queue_cur = queue_cur->next;        // queue指针后移
+	for(int i=0;i<good_seeds_length;i++){       // 遍历good_seeds_name，判断是否存在seed_name
+        strcpy(seed_name, queue_cur.fname);     // 获取fname，赋值给seed_name
+        token = strtok(seed_name, "/");         // 分割字符串
+        while ( token != NULL )         // 逐个查找分割后的元素
+        {
+            strcpy(seed_name, token);       // 保存新字符串至seed_name，最终将获取最后一个元素，即种子文件名
+            token = strtok(NULL, "/");      // 获取下一个字符串
+        }
+        if(good_seeds_name[i] == seed_name){
+            break;                      // 存在则退出循环
+        }else{
+            queue_cur = queue_cur->next;    // 若不存在，queue指针继续后移，重新判断
+        }
+	}
     current_entry++;
 
   }
