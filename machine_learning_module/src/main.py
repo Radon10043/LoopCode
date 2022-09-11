@@ -23,7 +23,7 @@ from sklearn_test import train_sk_model, load_model
 from train_dataset_generator import read_afl_testcase
 from weight_diff_calculate import calculate_weight_diff_for_each_output
 import utils
-import real_time_data as rta
+import real_time_data as rtd
 import keep_showmap
 # import record_out as ro
 
@@ -67,6 +67,8 @@ def get_args():
     parser.add_argument("--log-level", help="日志的输出等级", type=str, default="INFO")  # 1:debug 2:info
     parser.add_argument("--gcc-version-bin", help="gcc编译出来的可执行被测文件地址", type=str)
     parser.add_argument("--append-args", help="被测文件的参数", type=str)
+    parser.add_argument("--out-path", help="记录输出文件地址", type=str)
+    parser.add_argument("--fuzzer-stats", help="afl文件地址", type=str)
     parser.add_argument("--testcase-dir-path", help="测试用例的输出位置，用于监控路径覆盖情况", type=str)
     return parser.parse_args()
 
@@ -159,10 +161,10 @@ def main():
             address = ("127.0.0.1", PORT)
             server_socket.bind(address)  # 绑定开启socket端口
             loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
-            # t1 = Thread(target=rta.recordData, args=())
-            # t1.start()
-            showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
-            showmap_thread.start()
+            t1 = Thread(target=rtd.recordData, args=(args.out_path, args.fuzzer_stats))
+            t1.start()
+            # showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
+            # showmap_thread.start()
             print('>>>Begin>>>')
             while True:
                 print('>>>while True')

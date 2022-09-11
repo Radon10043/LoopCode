@@ -23,6 +23,7 @@ export PY_OUTPUT_DIR_PATH=$PWD/obj-loop/temp/py.log
 export PRE_TRAIN_AFL_OUT_DIR_NAME=out_afl_pre_train
 export MODEL_PATH=$PWD/obj-loop/temp/libming.model.lowry
 export KEEP_SHOWMAP_THREAD_PATH=/home/lowry/Documents/LoopCode/machine_learning_module/src/keep_showmap_thread.py
+export FUZZER_STATS=/home/lowry/Documents/LoopCode/scripts/jasper-2.0.21/obj-loop/out/fuzzer_stats
 
 export SUBJECT=$PWD
 export TMP_DIR=$PWD/obj-loop/temp
@@ -61,11 +62,11 @@ wget -P in_afl_origin http://condor.depaul.edu/sjost/hci430/flash-examples/swf/b
 # 第一次py，预训练模型
 $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-save-path $MODEL_PATH --pre-train-testcase /home/lowry/Documents/LoopCode/scripts/libming_in --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/LOOP-libming-gcc/obj-afl/util/swftophp --append-args ""
 # 正式运行afl-model
-$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/LOOP-libming-gcc/obj-afl/util/swftophp --append-args "" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
+$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/LOOP-libming-gcc/obj-afl/util/swftophp --append-args "" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
 sleep 5s
 $AFL/afl-fuzz -p -y -k 120 -l $line -t 1000+ -e 0 -m none -i /home/lowry/Documents/LoopCode/scripts/libming_in -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/util/swftophp @@
 
 # 独立运行原版afl
-#$PY_PATH -u $KEEP_SHOWMAP_THREAD_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/LOOP-libming-gcc/obj-afl/util/swftophp --append-args "" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
+#$PY_PATH -u $KEEP_SHOWMAP_THREAD_PATH --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/LOOP-libming-gcc/obj-afl/util/swftophp --append-args "" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
 #sleep 5s
 #$AFL/afl-fuzz -k 120 -l $line -m none -i /home/lowry/Documents/LoopCode/scripts/libming_in -o /home/lowry/Documents/LoopCode/scripts/LOOP-libming/obj-loop/out /home/lowry/Documents/LoopCode/scripts/LOOP-libming/obj-loop/util/swftophp @@

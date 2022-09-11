@@ -8,15 +8,15 @@
 
 main() {
   rm -rf SRC
-  proxychains git clone https://gitlab.gnome.org/GNOME/libxml2 SRC
+  proxychains git clone https://gitlab.gnome.org/GNOME/libxml2.git SRC
 
-  rm -rf libxml2-2.9.14-gcc-version
+  rm -rf libxml2-2.9.10-gcc-version
   ./libxml2-afl-gcc-version.sh
 
-  rm -rf libxml2-2.9.14
-  cp -r SRC libxml2-2.9.14
-  cd libxml2-2.9.14
-  git checkout v2.9.14
+  rm -rf libxml2-2.9.10
+  cp -r SRC libxml2-2.9.10
+  cd libxml2-2.9.10
+  git checkout v2.9.10
 
   mkdir obj-afl
   mkdir obj-afl/temp
@@ -61,12 +61,7 @@ main() {
   mkdir in
   cp $AFL/testcases/others/xml/small_document.xml in/
 
-  #    $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout & # 后台运行py
-  #    $AFL/afl-fuzz -p -k 720 -l $line -m none -i in -o $SUBJECT/obj-afl/out$i ./xmllint --valid --recover @@
-
-#  # 第一次afl，用于生成模型的初始测试用例
-#  $AFL/afl-fuzz -k 1 -l $line -m none -i in -o /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/$PRE_TRAIN_AFL_OUT_DIR_NAME /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/xmllint --valid --recover @@
-  # 第一次py，预训练模型
+# 第一次py，预训练模型
 #  $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-save-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14-gcc/obj-afl/xmllint --pre-train-testcase /home/lowry/Documents/LoopCode/scripts/libxml_in --append-args "--valid --recover"
 #  # 正式运行afl-model
 #  $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --log-level DEBUG --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14-gcc/obj-afl/xmllint --append-args "--valid --recover" --testcase-dir-path $SUBJECT/obj-afl/out & # 后台运行py

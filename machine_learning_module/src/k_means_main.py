@@ -14,6 +14,7 @@ import socket
 import time
 import argparse
 import kMeans
+import real_time_data as rtd
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # 将项目添加到PATH里
 sys.path.append(BASE_DIR)
@@ -42,6 +43,8 @@ def get_args():
     parser.add_argument("--append-args", help="被测文件的参数", type=str)
     parser.add_argument("--testcase-dir-path", help="测试用例的输出位置，用于监控路径覆盖情况", type=str)
     parser.add_argument("--good-seeds-path", help="存储选出种子文件名的位置", type=str)
+    parser.add_argument("--out-path", help="记录输出文件地址", type=str)
+    parser.add_argument("--fuzzer-stats", help="afl文件地址", type=str)
     return parser.parse_args()
 
 
@@ -68,8 +71,8 @@ def main():
         address = ("127.0.0.1", PORT)
         server_socket.bind(address)  # 绑定开启socket端口
         loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
-        # t1 = Thread(target=rta.recordData, args=())
-        # t1.start()
+        t1 = Thread(target=rtd.recordData, args=(args.out_path, args.fuzzer_stats))
+        t1.start()
         # showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
         # showmap_thread.start()
         # k_means_thread = Thread(target=kMeans.k_means_main, args=(args.testcase_dir_path, args.good_seeds_path))
@@ -83,8 +86,9 @@ def main():
             loguru.logger.info(f"receive data: {data}")
             if data.startswith("/"):
                 print('>>>data.startswith')
-                kMeans.k_means_main(seed_path=args.testcase_dir_path, out_path=args.good_seeds_path)
                 res = args.good_seeds_path
+                loguru.logger.info(f"good_seeds_path: {res}")
+                kMeans.k_means_main(seed_path=args.testcase_dir_path, out_path=res)
                 server_socket.sendto(res.encode("utf-8"), client)
     # else:  # 不启用SOCKET，单机测试
         # start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")

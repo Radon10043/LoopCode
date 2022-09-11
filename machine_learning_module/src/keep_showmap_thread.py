@@ -13,6 +13,8 @@ import numpy
 import socket
 import time
 import argparse
+import random
+import kMeans
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # 将项目添加到PATH里
 sys.path.append(BASE_DIR)
@@ -24,7 +26,7 @@ from train_dataset_generator import read_afl_testcase
 from weight_diff_calculate import calculate_weight_diff_for_each_output
 import utils
 import keep_showmap
-import real_time_data as rta
+import real_time_data as rtd
 
 max_features = 100
 PORT = 12012  # UDP端口
@@ -40,12 +42,14 @@ def get_args():
     parser.add_argument("--skip-log-stdout", help="阻止通过stdout输出日志信息", action="store_true")
     parser.add_argument("--pre-train", help="仅预训练", action="store_true")
     parser.add_argument("--pre-train-testcase", help="预训练时，模型的训练材料的本地地址", type=str)
-    parser.add_argument("--model-save-path", help="预训练时，模型的保存地址", type=str)
-    parser.add_argument("--model-load-path", help="非预训练模式时，预训练模型的地址，后续更新迭代模型也在该地址中", type=str)
     parser.add_argument("--log-level", help="日志的输出等级", type=str, default="INFO")  # 1:debug 2:info
     parser.add_argument("--gcc-version-bin", help="gcc编译出来的可执行被测文件地址", type=str)
     parser.add_argument("--append-args", help="被测文件的参数", type=str)
     parser.add_argument("--testcase-dir-path", help="测试用例的输出位置，用于监控路径覆盖情况", type=str)
+    parser.add_argument("--good-seeds-path", help="存储选出种子文件名的位置", type=str)
+    parser.add_argument("--out-path", help="记录输出文件地址", type=str)
+    parser.add_argument("--fuzzer-stats", help="afl文件地址", type=str)
+    parser.add_argument("--kmeans", help="是否为kmeans模式", type=str)
     return parser.parse_args()
 
 
@@ -76,10 +80,24 @@ def main():
         address = ("127.0.0.1", PORT)
         server_socket.bind(address)  # 绑定开启socket端口
         loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
-        # t1 = Thread(target=rta.recordData, args=())
-        # t1.start()
-        showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
-        showmap_thread.start()
+        t1 = Thread(target=rtd.recordData, args=(args.out_path, args.fuzzer_stats))
+        t1.start()
+        # showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
+        # showmap_thread.start()
+        # print('>>>Begin>>>')
+        if args.kmeans == 'T':
+            while True:
+                print('>>>while True')
+                receive_data, client = server_socket.recvfrom(1024)
+                data = receive_data.decode("utf-8")
+                loguru.logger.info(f"receive data: {data}")
+                if data.startswith("/"):
+                    print('>>>data.startswith')
+                    res = args.good_seeds_path
+                    loguru.logger.info(f"good_seeds_path: {res}")
+                    kMeans.get_seeds_random(seed_path=args.testcase_dir_path, out_path=args.good_seeds_path)
+                    # kMeans.get_seeds_fixed(seed_path=args.testcase_dir_path, out_path=args.good_seeds_path)
+                    server_socket.sendto(res.encode("utf-8"), client)
     # else:  # 不启用SOCKET，单机测试
         # start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")
 

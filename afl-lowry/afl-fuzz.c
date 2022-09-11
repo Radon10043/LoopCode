@@ -310,7 +310,7 @@ static u8 enable_base_prob = 0;               /* Yagol: can enable mutate base p
 static s32 MAX_TESTCASE_SKIP_SIZE = 100;      /* Yagol: 用于py模块训练的最大测试用例的大小, 决定了在skip的时候最大值                     */
 static s32 MIN_TESTCASE_SEND_TO_PY = 100;     /* Yagol: 最低给py发送的测试用例数量, 越多, py训练的越充分                               */
 static u64 real_time_testcase_counter = 0;    /* Yagol: 实时记录存在cov的测试用例的数量                                              */
-static s32 endurance_time = 0;                /* Yagol: 容忍afl多少分钟没有发现新的路径                                              */
+static s32 endurance_time = 1;                /* Yagol: 容忍afl多少分钟没有发现新的路径                                              */
 static u64 model_skip_byte_size = 0;          /* Yagol: 被模型跳过的字节总数量                                                      */
 static u64 model_choose_byte_size = 0;        /* lowry: 被模型选中的字节总数量                                                      */
 static s32 checking_byte_cur=0;                 /* Yagol: 临时记录需要被检测的字节位置下标，为什么多出这个变量？因为想和原版afl区分，万一原版用它干了别的，不影响他 */
@@ -319,6 +319,7 @@ char good_seeds_name[10000][100];           /* lowry: 被选中的种子文件�
 int good_seeds_length = 0;                  /* lowry: 被选中的种子长度 */
 char seed_name[200];                        /* lowry: 即将对比的种子文件名 */
 char *token;                                /* 分割出种子文件名的缓存变量 */
+int flag = 0;
 
 
 /* Interesting values, as per config.h */
@@ -370,30 +371,30 @@ enum {
 
 /* yagol py module function */
 /* 根据py输出的权重信息，更新afl的权重数组 */
-int update_prob_mapper(char *fusion_path)
-{
-  FILE *in = fopen(fusion_path, "r"); //打开py输出的权重文件，这是个csv文件，用逗号分割，前面是字节序号，后面是权重
-
-  if (in == NULL) {
-    perror("file can not open or is null");
-    exit(1); //文件打不开，退出整个程序
-    return -1; // 好像无意义了，因为退出了？
-  }
-  char buf[1024]; //用于读取文件的一行
-
-  while (fgets(buf, sizeof(buf), in) != NULL) {   //是否读取到文件末尾了
-    char *split = strtok(buf, ",");               //根据逗号分割
-    int temp = atoi(split);                       //前面的是int，是字节序号
-    split = strtok(NULL, ",");                    //再分割，这是找到了第二个
-    prob_mapper[temp] = atoi(split);              //第二个是权重，是int
-    if (prob_mapper[temp] > sum_prob){
-        sum_prob = prob_mapper[temp];
-    }
-  }
-
-  fclose(in); //关闭文件
-  return 0;
-}
+//int update_prob_mapper(char *fusion_path)
+//{
+//  FILE *in = fopen(fusion_path, "r"); //打开py输出的权重文件，这是个csv文件，用逗号分割，前面是字节序号，后面是权重
+//
+//  if (in == NULL) {
+//    perror("file can not open or is null");
+//    exit(1); //文件打不开，退出整个程序
+//    return -1; // 好像无意义了，因为退出了？
+//  }
+//  char buf[1024]; //用于读取文件的一行
+//
+//  while (fgets(buf, sizeof(buf), in) != NULL) {   //是否读取到文件末尾了
+//    char *split = strtok(buf, ",");               //根据逗号分割
+//    int temp = atoi(split);                       //前面的是int，是字节序号
+//    split = strtok(NULL, ",");                    //再分割，这是找到了第二个
+//    prob_mapper[temp] = atoi(split);              //第二个是权重，是int
+//    if (prob_mapper[temp] > sum_prob){
+//        sum_prob = prob_mapper[temp];
+//    }
+//  }
+//
+//  fclose(in); //关闭文件
+//  return 0;
+//}
 
 /* 根据py输出的good_seeds，读取该文件内容供afl做判断 */
 int update_good_seeds(char *good_seeds_path)
@@ -5399,25 +5400,26 @@ static u8 could_be_interest(u32 old_val, u32 new_val, u8 blen, u8 check_le) {
 }
 
 int is_select_base_prob(s32 checking_byte_location){
-    //checking_byte_location 是需要判断的字节位置，进入的时候，别忘了处理位字节，比如除以8
-    if(enable_base_prob==1){
-        //根据位的位置，计算出字节位置
-        if (checking_byte_location < MAX_TESTCASE_SKIP_SIZE){
-            if(UR((int)sum_prob)<=prob_mapper[checking_byte_location]){//如果随机值没有概率值大，那么就选择他
-                model_choose_byte_size++;
-                return 1;
-            }else{//随机值比概率值还要大，**，跳过你
-                model_skip_byte_size++;
-                return 0;
-            }
-        }else{//这个字节不在我的计算范围内，也就是模型没有学习到这个字节,那么这个字节需要被选择
-            model_choose_byte_size++;
-            return 1;
-        }
-    }
-    else{//没有启动py，所有的字节都要被选择
-        return 1;
-    }
+//    //checking_byte_location 是需要判断的字节位置，进入的时候，别忘了处理位字节，比如除以8
+//    if(enable_base_prob==1){
+//        //根据位的位置，计算出字节位置
+//        if (checking_byte_location < MAX_TESTCASE_SKIP_SIZE){
+//            if(UR((int)sum_prob)<=prob_mapper[checking_byte_location]){//如果随机值没有概率值大，那么就选择他
+//                model_choose_byte_size++;
+//                return 1;
+//            }else{//随机值比概率值还要大，**，跳过你
+//                model_skip_byte_size++;
+//                return 0;
+//            }
+//        }else{//这个字节不在我的计算范围内，也就是模型没有学习到这个字节,那么这个字节需要被选择
+//            model_choose_byte_size++;
+//            return 1;
+//        }
+//    }
+//    else{//没有启动py，所有的字节都要被选择
+//        return 1;
+//    }
+    return 1;
 }
 
 /* Take the current entry from the queue, fuzz it for a while. This
@@ -8800,22 +8802,32 @@ int main(int argc, char** argv) {
 
     if (stop_soon) break;
 
-    queue_cur = queue_cur->next;        // queue指针后移
-	for(int i=0;i<good_seeds_length;i++){       // 遍历good_seeds_name，判断是否存在seed_name
-        strcpy(seed_name, queue_cur.fname);     // 获取fname，赋值给seed_name
-        token = strtok(seed_name, "/");         // 分割字符串
-        while ( token != NULL )         // 逐个查找分割后的元素
-        {
-            strcpy(seed_name, token);       // 保存新字符串至seed_name，最终将获取最后一个元素，即种子文件名
-            token = strtok(NULL, "/");      // 获取下一个字符串
+    if(enable_py){
+        flag = 0;
+
+        while (queue_cur){
+            strcpy(seed_name, queue_cur->fname);     // 获取fname，赋值给seed_name
+            token = strtok(seed_name, "/");         // 分割字符串
+            while ( token != NULL )         // 逐个查找分割后的元素
+            {
+                strcpy(seed_name, token);       // 保存新字符串至seed_name，最终将获取最后一个元素，即种子文件名
+                token = strtok(NULL, "/");      // 获取下一个字符串
+            }
+            for(int i=0;i<good_seeds_length;i++){       // 遍历good_seeds_name，判断是否存在seed_name
+                if(good_seeds_name[i] == seed_name){
+                    flag = 1;                   // 标志退出大循环
+                    break;                      // 存在则退出循环
+                }
+            }
+            queue_cur = queue_cur->next;        // queue指针后移
+            current_entry++;
+            if(flag == 1) break;
         }
-        if(good_seeds_name[i] == seed_name){
-            break;                      // 存在则退出循环
-        }else{
-            queue_cur = queue_cur->next;    // 若不存在，queue指针继续后移，重新判断
-        }
+	}else{
+	    queue_cur = queue_cur->next;
+        current_entry++;
 	}
-    current_entry++;
+
 
   }
 
