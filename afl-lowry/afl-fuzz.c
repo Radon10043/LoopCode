@@ -317,10 +317,6 @@ static s32 checking_byte_cur=0;                 /* Yagol: 临时记录需要被�
 static u8 pre_train_model =0;                /* Yagol: 是否为预训练模型存在的模式,是则直接启动py   */
 char good_seeds_name[10000][100];           /* lowry: 被选中的种子文件名 */
 int good_seeds_length = 0;                  /* lowry: 被选中的种子长度 */
-char seed_name[200];                        /* lowry: 即将对比的种子文件名 */
-char *token;                                /* 分割出种子文件名的缓存变量 */
-int flag = 0;
-
 
 /* Interesting values, as per config.h */
 
@@ -8789,6 +8785,50 @@ int main(int argc, char** argv) {
     }
 #endif
 
+#if 1
+
+    /* 跳过坏种子, 指向好种子 */
+
+    if (enable_py) {
+      u8 has_good = 0;
+
+      while (queue_cur) {
+
+        /* pos指向 fname 中最后一个 '/' 后的第一个字符 */
+
+        u16 pos = 0, i = 0;
+        while (queue_cur->fname[i])
+          if (queue_cur->fname[i++] == '/')
+            pos = i;
+
+        /* 遍历好种子, 如果好种子中有种子和当前指向的种子匹配, 则跳出遍历 */
+
+        for (i = 0; i < good_seeds_length; i++) {
+          if (!strcmp(good_seeds_name[i], queue_cur->fname + pos)) {
+            has_good = 1;
+            break;
+          }
+        }
+
+        /* 当前指向的种子是好种子, 跳出循环 */
+
+        if (has_good) break;
+
+        /* 当前指向的种子不是好种子, 继续遍历 */
+
+        queue_cur = queue_cur->next;
+        current_entry++;
+
+      }
+
+    }
+
+    /* 若遍历到队列尾部都没发现好种子, 从头开始 */
+
+    if (!queue_cur) continue;
+
+#endif
+
     skipped_fuzz = fuzz_one(use_argv);
 
     if (!stop_soon && sync_id && !skipped_fuzz) {
@@ -8802,31 +8842,8 @@ int main(int argc, char** argv) {
 
     if (stop_soon) break;
 
-    if(enable_py){
-        flag = 0;
-
-        while (queue_cur){
-            strcpy(seed_name, queue_cur->fname);     // 获取fname，赋值给seed_name
-            token = strtok(seed_name, "/");         // 分割字符串
-            while ( token != NULL )         // 逐个查找分割后的元素
-            {
-                strcpy(seed_name, token);       // 保存新字符串至seed_name，最终将获取最后一个元素，即种子文件名
-                token = strtok(NULL, "/");      // 获取下一个字符串
-            }
-            for(int i=0;i<good_seeds_length;i++){       // 遍历good_seeds_name，判断是否存在seed_name
-                if(good_seeds_name[i] == seed_name){
-                    flag = 1;                   // 标志退出大循环
-                    break;                      // 存在则退出循环
-                }
-            }
-            queue_cur = queue_cur->next;        // queue指针后移
-            current_entry++;
-            if(flag == 1) break;
-        }
-	}else{
-	    queue_cur = queue_cur->next;
-        current_entry++;
-	}
+    queue_cur = queue_cur->next;
+    current_entry++;
 
 
   }
