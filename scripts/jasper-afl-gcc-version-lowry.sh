@@ -7,7 +7,7 @@ git checkout v2.0.21
 mkdir obj-loop
 mkdir obj-loop/temp
 
-export AFL=/home/lowry/Documents/LoopCode/afl-yagol
+export AFL=/home/lowry/Documents/LoopCode/afl-lowry
 export SUBJECT=$PWD
 export CC=$AFL/afl-gcc
 export CXX=$AFL/afl-g++

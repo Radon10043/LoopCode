@@ -21,7 +21,7 @@ def k_means(X, y):
     :return: 模型
     """
     # 设置n_clusters为聚类中心数量
-    n_clusters = int(X.shape[0] / 3)
+    n_clusters = int(X.shape[0] / 4)
     # n_clusters = 5
     loguru.logger.info(f'本次训练--->簇的数量：{n_clusters}')
     Kmeans = KMeans(n_clusters=n_clusters)
@@ -124,7 +124,7 @@ def k_means_main(seed_path=None, out_path=None):
     km = k_means(X, y)
 
     """4. 获得特征标签"""
-    cc = km.cluster_centers_  # 簇中心点
+    # cc = km.cluster_centers_  # 簇中心点
     lb = km.labels_  # 特征标签
 
     """5. 从每个簇中随机选择种子，并将选出的种子文件名存入seeds_name中"""

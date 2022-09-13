@@ -15,7 +15,7 @@ import joblib
 
 hidden_layer_sizes = (3, 3, 3,)  # 隐藏层
 # hidden_layer_sizes = (100, 100, 100,)  # 隐藏层
-max_iter = 200  # 最大迭代次数
+max_iter = 1000  # 最大迭代次数
 clf = MLPClassifier(
     # solver='adam',
     # alpha=1e-5,

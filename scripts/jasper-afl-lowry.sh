@@ -60,14 +60,14 @@ cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
 # 第一次afl，用于生成模型的初始测试用例
 #$AFL/afl-fuzz -k 1 -l $line -m none -i in -o /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/src/appl/jasper --output /tmp/out_afl_origin.jpg --input @@
 # 第一次py，预训练模型
-$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-save-path $MODEL_PATH --pre-train-testcase /home/lowry/Documents/LoopCode/scripts/jasper_in3 --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/jasper-2.0.21-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input"
-# 正式运行afl-model
-$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/jasper-2.0.21-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
-sleep 5s
-$AFL/afl-fuzz -p -y -k 120 -l $line -t 1000+ -e 0 -m none -i /home/lowry/Documents/LoopCode/scripts/jasper_in3 -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/appl/jasper --output /tmp/out.jpg --input @@
+#$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --pre-train --model-save-path $MODEL_PATH --pre-train-testcase /home/lowry/Documents/LoopCode/scripts/jasper_in3 --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/jasper-2.0.21-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input"
+## 正式运行afl-model
+#$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/jasper-2.0.21-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
+#sleep 5s
+#$AFL/afl-fuzz -p -y -k 240 -l $line -t 1000+ -e 1 -m none -i /home/lowry/Documents/LoopCode/scripts/jasper_in3 -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/appl/jasper --output /tmp/out.jpg --input @@
 
 # 独立运行原版afl
 #$AFL/afl-fuzz -k 1 -l $line -m none -i in -o /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/$PRE_TRAIN_AFL_OUT_DIR_NAME /home/lowry/Documents/LoopCode/scripts/jasper-2.0.21/obj-loop/src/appl/jasper --output /tmp/out_afl_origin.jpg --input @@
-#$PY_PATH -u $KEEP_SHOWMAP_THREAD_PATH --kmeans F --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/jasper-2.0.21-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
-#sleep 5s
-#$AFL/afl-fuzz -k 30 -l $line -t 1000+ -e 0 -m none -i /home/lowry/Documents/LoopCode/scripts/jasper_in3 -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/appl/jasper --output /tmp/out.jpg --input @@
+$PY_PATH -u $KEEP_SHOWMAP_THREAD_PATH --kmeans F --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/jasper-2.0.21-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
+sleep 5s
+$AFL/afl-fuzz -k 240 -l $line -t 1000+ -e 0 -m none -i /home/lowry/Documents/LoopCode/scripts/jasper_in3 -o $SUBJECT/obj-loop/out $SUBJECT/obj-loop/src/appl/jasper --output /tmp/out.jpg --input @@

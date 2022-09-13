@@ -69,9 +69,9 @@ main() {
 #  $AFL/afl-fuzz -p -y -k 180 -l $line -t 1000+ -e 0 -m none -i /home/lowry/Documents/LoopCode/scripts/libxml_in -o $SUBJECT/obj-afl/out $SUBJECT/obj-afl/xmllint --valid --recover @@
 
   # 独立运行原版afl
-  $PY_PATH -u $KEEP_SHOWMAP_THREAD_PATH --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14-gcc/obj-afl/xmllint --append-args "--valid --recover" --testcase-dir-path $SUBJECT/obj-afl/out & # 后台运行py
+  $PY_PATH -u $KEEP_SHOWMAP_THREAD_PATH --kmeans F --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --model-load-path $MODEL_PATH --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14-gcc/obj-afl/xmllint --append-args "--valid --recover" --testcase-dir-path $SUBJECT/obj-afl/out & # 后台运行py
   sleep 5s
-  $AFL/afl-fuzz -k 180 -l $line -m none -i /home/lowry/Documents/LoopCode/scripts/libxml_in -o /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/out /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/xmllint --valid --recover @@
+  $AFL/afl-fuzz -k 30 -l $line -m none -i /home/lowry/Documents/LoopCode/scripts/libxml_in -o /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/out /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.14/obj-afl/xmllint --valid --recover @@
 }
 
 main

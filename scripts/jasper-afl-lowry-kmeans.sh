@@ -5,7 +5,7 @@ rm -rf jasper-2.0.21-gcc
 rm -rf obj-loop
 proxychains git clone https://github.com/mdadams/jasper.git SRC
 echo "run gcc first"
-./jasper-afl-gcc-version-ya.sh
+./jasper-afl-gcc-version-lowry.sh
 
 cp -r SRC jasper-2.0.21
 cd jasper-2.0.21

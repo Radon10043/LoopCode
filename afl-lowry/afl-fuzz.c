@@ -313,10 +313,14 @@ static u64 real_time_testcase_counter = 0;    /* Yagol: 实时记录存在cov的
 static s32 endurance_time = 1;                /* Yagol: 容忍afl多少分钟没有发现新的路径                                              */
 static u64 model_skip_byte_size = 0;          /* Yagol: 被模型跳过的字节总数量                                                      */
 static u64 model_choose_byte_size = 0;        /* lowry: 被模型选中的字节总数量                                                      */
-static s32 checking_byte_cur=0;                 /* Yagol: 临时记录需要被检测的字节位置下标，为什么多出这个变量？因为想和原版afl区分，万一原版用它干了别的，不影响他 */
-static u8 pre_train_model =0;                /* Yagol: 是否为预训练模型存在的模式,是则直接启动py   */
-char good_seeds_name[10000][100];           /* lowry: 被选中的种子文件名 */
-int good_seeds_length = 0;                  /* lowry: 被选中的种子长度 */
+static s32 checking_byte_cur = 0;               /* Yagol: 临时记录需要被检测的字节位置下标，为什么多出这个变量？因为想和原版afl区分，万一原版用它干了别的，不影响他 */
+static u8 pre_train_model = 0;                 /* Yagol: 是否为预训练模型存在的模式,是则直接启动py                                      */
+
+struct good_seed_list {
+  u8* fname;
+  struct good_seed_list* next;
+};
+struct good_seed_list *good_seed_entry;
 
 /* Interesting values, as per config.h */
 
@@ -393,22 +397,57 @@ enum {
 //}
 
 /* 根据py输出的good_seeds，读取该文件内容供afl做判断 */
-int update_good_seeds(char *good_seeds_path)
-{
+int update_good_seeds(char *good_seeds_path) {
   FILE *in = fopen(good_seeds_path, "r"); //打开py输出的权重文件
 
   if (in == NULL) {
-    perror("file can not open or is null");
+    FATAL("Good seeds file can not open or it is null");
     exit(1); //文件打不开，退出整个程序
-    return -1; // 好像无意义了，因为退出了？
   }
-  char buf[1024]; //用于读取文件的一行
-  memset(good_seeds_name, 0, sizeof good_seeds_name);   // 清空字符串列表
-  good_seeds_length = 0;                            // 字符串长度初始化为0
 
-  while (fgets(buf, sizeof(buf), in) != NULL) {   //是否读取到文件末尾了
-    strcpy(good_seeds_name[good_seeds_length], buf);       // 将读出来的种子文件名插入到列表中
-    good_seeds_length ++;                           // 长度+1
+  char buf[1024];       // 用于读取文件的一行
+  memset(buf, 0, 1024); // 初始化
+
+  /* free掉当前存储了好种子的链表 */
+
+  while (good_seed_entry) {
+    struct good_seed_list* ptr = good_seed_entry;
+    good_seed_entry = good_seed_entry->next;
+    ck_free(ptr);
+  }
+
+  /* 指针初始化, entry指向好种子链表的入口, tail指向好种子链表的最后一个元素 */
+
+  good_seed_entry = NULL;
+  struct good_seed_list* good_seed_tail = NULL;
+
+  /* 逐行读取文件中的内容, 并存入好种子链表 */
+
+  while (fgets(buf, sizeof(buf), in) != NULL) {
+
+    /* 分配一段内存来存储一个链表节点 */
+
+    struct good_seed_list* node = ck_alloc(sizeof(struct good_seed_list));
+    node->fname = alloc_printf("%s", buf);     /* 链表节点的名字就是当前行的内容 */
+    node->fname[strlen(node->fname) - 1] = 0;   /* 最后一个字符设置为0 */
+
+    /* 若尾指针指向的内容不为空, 即链表内容不为空, 则将新节点加入到链表 */
+
+    if (good_seed_tail) {
+      good_seed_tail->next = node;
+      good_seed_tail = good_seed_tail->next;
+    }
+
+    /* 如果链表为空, 设置入口指针与尾指针, 这段代码在循环中应该只会执行一次 */
+
+    if (!good_seed_entry) {
+      good_seed_entry = node;
+      good_seed_tail = node;
+    }
+
+    /* buf的内容设置为0 */
+
+    memset(buf, 0, 1024);
   }
 
   fclose(in); //关闭文件
@@ -588,7 +627,7 @@ static void bind_to_free_cpu(void) {
 
     u8* fn;
     FILE* f;
-    u8 tmp[MAX_LINE];
+    u8 node[MAX_LINE];
     u8 has_vmsize = 0;
 
     if (!isdigit(de->d_name[0])) continue;
@@ -600,17 +639,17 @@ static void bind_to_free_cpu(void) {
       continue;
     }
 
-    while (fgets(tmp, MAX_LINE, f)) {
+    while (fgets(node, MAX_LINE, f)) {
 
       u32 hval;
 
       /* Processes without VmSize are probably kernel tasks. */
 
-      if (!strncmp(tmp, "VmSize:\t", 8)) has_vmsize = 1;
+      if (!strncmp(node, "VmSize:\t", 8)) has_vmsize = 1;
 
-      if (!strncmp(tmp, "Cpus_allowed_list:\t", 19) &&
-          !strchr(tmp, '-') && !strchr(tmp, ',') &&
-          sscanf(tmp + 19, "%u", &hval) == 1 && hval < sizeof(cpu_used) &&
+      if (!strncmp(node, "Cpus_allowed_list:\t", 19) &&
+          !strchr(node, '-') && !strchr(node, ',') &&
+          sscanf(node + 19, "%u", &hval) == 1 && hval < sizeof(cpu_used) &&
           has_vmsize) {
 
         cpu_used[hval] = 1;
@@ -707,15 +746,15 @@ static void locate_diffs(u8* ptr1, u8* ptr2, u32 len, s32* first, s32* last) {
 
 static u8* DI(u64 val) {
 
-  static u8 tmp[12][16];
+  static u8 node[12][16];
   static u8 cur;
 
   cur = (cur + 1) % 12;
 
 #define CHK_FORMAT(_divisor, _limit_mult, _fmt, _cast) do { \
     if (val < (_divisor) * (_limit_mult)) { \
-      sprintf(tmp[cur], _fmt, ((_cast)val) / (_divisor)); \
-      return tmp[cur]; \
+      sprintf(node[cur], _fmt, ((_cast)val) / (_divisor)); \
+      return node[cur]; \
     } \
   } while (0)
 
@@ -753,8 +792,8 @@ static u8* DI(u64 val) {
   CHK_FORMAT(1000LL * 1000 * 1000 * 1000, 99.95, "%0.01fT", double);
 
   /* 100T+ */
-  strcpy(tmp[cur], "infty");
-  return tmp[cur];
+  strcpy(node[cur], "infty");
+  return node[cur];
 
 }
 
@@ -764,16 +803,16 @@ static u8* DI(u64 val) {
 
 static u8* DF(double val) {
 
-  static u8 tmp[16];
+  static u8 node[16];
 
   if (val < 99.995) {
-    sprintf(tmp, "%0.02f", val);
-    return tmp;
+    sprintf(node, "%0.02f", val);
+    return node;
   }
 
   if (val < 999.95) {
-    sprintf(tmp, "%0.01f", val);
-    return tmp;
+    sprintf(node, "%0.01f", val);
+    return node;
   }
 
   return DI((u64)val);
@@ -785,7 +824,7 @@ static u8* DF(double val) {
 
 static u8* DMS(u64 val) {
 
-  static u8 tmp[12][16];
+  static u8 node[12][16];
   static u8 cur;
 
   cur = (cur + 1) % 12;
@@ -826,8 +865,8 @@ static u8* DMS(u64 val) {
 #undef CHK_FORMAT
 
   /* 100T+ */
-  strcpy(tmp[cur], "infty");
-  return tmp[cur];
+  strcpy(node[cur], "infty");
+  return node[cur];
 
 }
 
@@ -836,7 +875,7 @@ static u8* DMS(u64 val) {
 
 static u8* DTD(u64 cur_ms, u64 event_ms) {
 
-  static u8 tmp[64];
+  static u8 node[64];
   u64 delta;
   s32 t_d, t_h, t_m, t_s;
 
@@ -849,8 +888,8 @@ static u8* DTD(u64 cur_ms, u64 event_ms) {
   t_m = (delta / 1000 / 60) % 60;
   t_s = (delta / 1000) % 60;
 
-  sprintf(tmp, "%s days, %u hrs, %u min, %u sec", DI(t_d), t_h, t_m, t_s);
-  return tmp;
+  sprintf(node, "%s days, %u hrs, %u min, %u sec", DI(t_d), t_h, t_m, t_s);
+  return node;
 
 }
 
@@ -2080,7 +2119,7 @@ static void load_auto(void) {
 
   for (i = 0; i < USE_AUTO_EXTRAS; i++) {
 
-    u8  tmp[MAX_AUTO_EXTRA + 1];
+    u8  node[MAX_AUTO_EXTRA + 1];
     u8* fn = alloc_printf("%s/.state/auto_extras/auto_%06u", in_dir, i);
     s32 fd, len;
 
@@ -2097,12 +2136,12 @@ static void load_auto(void) {
     /* We read one byte more to cheaply detect tokens that are too
        long (and skip them). */
 
-    len = read(fd, tmp, MAX_AUTO_EXTRA + 1);
+    len = read(fd, node, MAX_AUTO_EXTRA + 1);
 
     if (len < 0) PFATAL("Unable to read from '%s'", fn);
 
     if (len >= MIN_AUTO_EXTRA && len <= MAX_AUTO_EXTRA)
-      maybe_add_auto(tmp, len);
+      maybe_add_auto(node, len);
 
     close(fd);
     ck_free(fn);
@@ -3130,7 +3169,7 @@ static void link_or_copy(u8* old_path, u8* new_path) {
 
   s32 i = link(old_path, new_path);
   s32 sfd, dfd;
-  u8* tmp;
+  u8* node;
 
   if (!i) return;
 
@@ -3140,14 +3179,14 @@ static void link_or_copy(u8* old_path, u8* new_path) {
   dfd = open(new_path, O_WRONLY | O_CREAT | O_EXCL, 0600);
   if (dfd < 0) PFATAL("Unable to create '%s'", new_path);
 
-  tmp = ck_alloc(64 * 1024);
+  node = ck_alloc(64 * 1024);
 
-  while ((i = read(sfd, tmp, 64 * 1024)) > 0) 
-    ck_write(dfd, tmp, i, new_path);
+  while ((i = read(sfd, node, 64 * 1024)) > 0) 
+    ck_write(dfd, node, i, new_path);
 
   if (i < 0) PFATAL("read() failed");
 
-  ck_free(tmp);
+  ck_free(node);
   close(sfd);
   close(dfd);
 
@@ -3735,7 +3774,7 @@ keep_as_crash:
 
 static u32 find_start_position(void) {
 
-  static u8 tmp[4096]; /* Ought to be enough for anybody. */
+  static u8 node[4096]; /* Ought to be enough for anybody. */
 
   u8  *fn, *off;
   s32 fd, i;
@@ -3751,10 +3790,10 @@ static u32 find_start_position(void) {
 
   if (fd < 0) return 0;
 
-  i = read(fd, tmp, sizeof(tmp) - 1); (void)i; /* Ignore errors */
+  i = read(fd, node, sizeof(node) - 1); (void)i; /* Ignore errors */
   close(fd);
 
-  off = strstr(tmp, "cur_path          : ");
+  off = strstr(node, "cur_path          : ");
   if (!off) return 0;
 
   ret = atoi(off + 20);
@@ -3770,7 +3809,7 @@ static u32 find_start_position(void) {
 
 static void find_timeout(void) {
 
-  static u8 tmp[4096]; /* Ought to be enough for anybody. */
+  static u8 node[4096]; /* Ought to be enough for anybody. */
 
   u8  *fn, *off;
   s32 fd, i;
@@ -3786,10 +3825,10 @@ static void find_timeout(void) {
 
   if (fd < 0) return;
 
-  i = read(fd, tmp, sizeof(tmp) - 1); (void)i; /* Ignore errors */
+  i = read(fd, node, sizeof(node) - 1); (void)i; /* Ignore errors */
   close(fd);
 
-  off = strstr(tmp, "exec_timeout      : ");
+  off = strstr(node, "exec_timeout      : ");
   if (!off) return;
 
   ret = atoi(off + 20);
@@ -3992,15 +4031,15 @@ static double get_runnable_processes(void) {
      processes well. */
 
   FILE* f = fopen("/proc/stat", "r");
-  u8 tmp[1024];
+  u8 node[1024];
   u32 val = 0;
 
   if (!f) return 0;
 
-  while (fgets(tmp, sizeof(tmp), f)) {
+  while (fgets(node, sizeof(node), f)) {
 
-    if (!strncmp(tmp, "procs_running ", 14) ||
-        !strncmp(tmp, "procs_blocked ", 14)) val += atoi(tmp + 14);
+    if (!strncmp(node, "procs_running ", 14) ||
+        !strncmp(node, "procs_blocked ", 14)) val += atoi(node + 14);
 
   }
  
@@ -4331,7 +4370,7 @@ static void show_stats(void) {
   u32 t_bytes, t_bits;
 
   u32 banner_len, banner_pad;
-  u8  tmp[256];
+  u8  node[256];
 
   cur_ms = get_cur_time();
 
@@ -4444,20 +4483,20 @@ static void show_stats(void) {
 
   banner_len = (crash_mode ? 24 : 22) + strlen(VERSION) + strlen(use_banner);
   banner_pad = (80 - banner_len) / 2;
-  memset(tmp, ' ', banner_pad);
+  memset(node, ' ', banner_pad);
   if(enable_py){
-      sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
+      sprintf(node + banner_pad, "%s " cLCY VERSION cLGN
           " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" :
           cYEL "american fuzzy lop (Yagol's YFL) (Model)", use_banner);
   }
   else{
-      sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
+      sprintf(node + banner_pad, "%s " cLCY VERSION cLGN
           " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" :
           cYEL "american fuzzy lop (Yadon's YFL)", use_banner);
   }
 
 
-  SAYF("\n%s\n\n", tmp);
+  SAYF("\n%s\n\n", node);
 
   /* "Handy" shortcuts for drawing boxes... */
 
@@ -4478,30 +4517,30 @@ static void show_stats(void) {
 
   if (dumb_mode) {
 
-    strcpy(tmp, cRST);
+    strcpy(node, cRST);
 
   } else {
 
     u64 min_wo_finds = (cur_ms - last_path_time) / 1000 / 60;
 
     /* First queue cycle: don't stop now! */
-    if (queue_cycle == 1 || min_wo_finds < 15) strcpy(tmp, cMGN); else
+    if (queue_cycle == 1 || min_wo_finds < 15) strcpy(node, cMGN); else
 
     /* Subsequent cycles, but we're still making finds. */
-    if (cycles_wo_finds < 25 || min_wo_finds < 30) strcpy(tmp, cYEL); else
+    if (cycles_wo_finds < 25 || min_wo_finds < 30) strcpy(node, cYEL); else
 
     /* No finds for a long time and no test cases to try. */
     if (cycles_wo_finds > 100 && !pending_not_fuzzed && min_wo_finds > 120)
-      strcpy(tmp, cLGN);
+      strcpy(node, cLGN);
 
     /* Default: cautiously OK to stop? */
-    else strcpy(tmp, cLBL);
+    else strcpy(node, cLBL);
 
   }
 
   SAYF(bV bSTOP "        run time : " cRST "%-34s " bSTG bV bSTOP
        "  cycles done : %s%-5s  " bSTG bV "\n",
-       DTD(cur_ms, start_time), tmp, DI(queue_cycle - 1));
+       DTD(cur_ms, start_time), node, DI(queue_cycle - 1));
 
   /* We want to warn people about not seeing new paths after a full cycle,
      except when resuming fuzzing or running in non-instrumented mode. */
@@ -4532,20 +4571,20 @@ static void show_stats(void) {
   /* Highlight crashes in red if found, denote going over the KEEP_UNIQUE_CRASH
      limit with a '+' appended to the count. */
 
-  sprintf(tmp, "%s%s", DI(unique_crashes),
+  sprintf(node, "%s%s", DI(unique_crashes),
           (unique_crashes >= KEEP_UNIQUE_CRASH) ? "+" : "");
 
   SAYF(bV bSTOP " last uniq crash : " cRST "%-34s " bSTG bV bSTOP
        " uniq crashes : %s%-6s " bSTG bV "\n",
        DTD(cur_ms, last_crash_time), unique_crashes ? cLRD : cRST,
-       tmp);
+       node);
 
-  sprintf(tmp, "%s%s", DI(unique_hangs),
+  sprintf(node, "%s%s", DI(unique_hangs),
          (unique_hangs >= KEEP_UNIQUE_HANG) ? "+" : "");
 
   SAYF(bV bSTOP "  last uniq hang : " cRST "%-34s " bSTG bV bSTOP 
        "   uniq hangs : " cRST "%-6s " bSTG bV "\n",
-       DTD(cur_ms, last_hang_time), tmp);
+       DTD(cur_ms, last_hang_time), node);
 
   SAYF(bVR bH bSTOP cCYA " cycle progress " bSTG bH20 bHB bH bSTOP cCYA
        " map coverage " bSTG bH bHT bH20 bH2 bH bVL "\n");
@@ -4554,71 +4593,71 @@ static void show_stats(void) {
      together, but then cram them into a fixed-width field - so we need to
      put them in a temporary buffer first. */
 
-  sprintf(tmp, "%s%s (%0.02f%%)", DI(current_entry),
+  sprintf(node, "%s%s (%0.02f%%)", DI(current_entry),
           queue_cur->favored ? "" : "*",
           ((double)current_entry * 100) / queued_paths);
 
-  SAYF(bV bSTOP "  now processing : " cRST "%-17s " bSTG bV bSTOP, tmp);
+  SAYF(bV bSTOP "  now processing : " cRST "%-17s " bSTG bV bSTOP, node);
 
-  sprintf(tmp, "%0.02f%% / %0.02f%%", ((double)queue_cur->bitmap_size) * 
+  sprintf(node, "%0.02f%% / %0.02f%%", ((double)queue_cur->bitmap_size) * 
           100 / MAP_SIZE, t_byte_ratio);
 
   SAYF("    map density : %s%-21s " bSTG bV "\n", t_byte_ratio > 70 ? cLRD : 
-       ((t_bytes < 200 && !dumb_mode) ? cPIN : cRST), tmp);
+       ((t_bytes < 200 && !dumb_mode) ? cPIN : cRST), node);
 
-  sprintf(tmp, "%s (%0.02f%%)", DI(cur_skipped_paths),
+  sprintf(node, "%s (%0.02f%%)", DI(cur_skipped_paths),
           ((double)cur_skipped_paths * 100) / queued_paths);
 
-  SAYF(bV bSTOP " paths timed out : " cRST "%-17s " bSTG bV, tmp);
+  SAYF(bV bSTOP " paths timed out : " cRST "%-17s " bSTG bV, node);
 
-  sprintf(tmp, "%0.02f bits/tuple",
+  sprintf(node, "%0.02f bits/tuple",
           t_bytes ? (((double)t_bits) / t_bytes) : 0);
 
-  SAYF(bSTOP " count coverage : " cRST "%-21s " bSTG bV "\n", tmp);
+  SAYF(bSTOP " count coverage : " cRST "%-21s " bSTG bV "\n", node);
 
   SAYF(bVR bH bSTOP cCYA " stage progress " bSTG bH20 bX bH bSTOP cCYA
        " findings in depth " bSTG bH20 bVL "\n");
 
-  sprintf(tmp, "%s (%0.02f%%)", DI(queued_favored),
+  sprintf(node, "%s (%0.02f%%)", DI(queued_favored),
           ((double)queued_favored) * 100 / queued_paths);
 
   /* Yeah... it's still going on... halp? */
 
   SAYF(bV bSTOP "  now trying : " cRST "%-21s " bSTG bV bSTOP 
-       " favored paths : " cRST "%-22s " bSTG bV "\n", stage_name, tmp);
+       " favored paths : " cRST "%-22s " bSTG bV "\n", stage_name, node);
 
   if (!stage_max) {
 
-    sprintf(tmp, "%s/-", DI(stage_cur));
+    sprintf(node, "%s/-", DI(stage_cur));
 
   } else {
 
-    sprintf(tmp, "%s/%s (%0.02f%%)", DI(stage_cur), DI(stage_max),
+    sprintf(node, "%s/%s (%0.02f%%)", DI(stage_cur), DI(stage_max),
             ((double)stage_cur) * 100 / stage_max);
 
   }
 
-  SAYF(bV bSTOP " stage execs : " cRST "%-21s " bSTG bV bSTOP, tmp);
+  SAYF(bV bSTOP " stage execs : " cRST "%-21s " bSTG bV bSTOP, node);
 
-  sprintf(tmp, "%s (%0.02f%%)", DI(queued_with_cov),
+  sprintf(node, "%s (%0.02f%%)", DI(queued_with_cov),
           ((double)queued_with_cov) * 100 / queued_paths);
 
-  SAYF("  new edges on : " cRST "%-22s " bSTG bV "\n", tmp);
+  SAYF("  new edges on : " cRST "%-22s " bSTG bV "\n", node);
 
-  sprintf(tmp, "%s (%s%s unique)", DI(total_crashes), DI(unique_crashes),
+  sprintf(node, "%s (%s%s unique)", DI(total_crashes), DI(unique_crashes),
           (unique_crashes >= KEEP_UNIQUE_CRASH) ? "+" : "");
 
   if (crash_mode) {
 
     SAYF(bV bSTOP " total execs : " cRST "%-21s " bSTG bV bSTOP
          "   new crashes : %s%-22s " bSTG bV "\n", DI(total_execs),
-         unique_crashes ? cLRD : cRST, tmp);
+         unique_crashes ? cLRD : cRST, node);
 
   } else {
 
     SAYF(bV bSTOP " total execs : " cRST "%-21s " bSTG bV bSTOP
          " total crashes : %s%-22s " bSTG bV "\n", DI(total_execs),
-         unique_crashes ? cLRD : cRST, tmp);
+         unique_crashes ? cLRD : cRST, node);
 
   }
 
@@ -4626,22 +4665,22 @@ static void show_stats(void) {
 
   if (avg_exec < 100) {
 
-    sprintf(tmp, "%s/sec (%s)", DF(avg_exec), avg_exec < 20 ?
+    sprintf(node, "%s/sec (%s)", DF(avg_exec), avg_exec < 20 ?
             "zzzz..." : "slow!");
 
-    SAYF(bV bSTOP "  exec speed : " cLRD "%-21s ", tmp);
+    SAYF(bV bSTOP "  exec speed : " cLRD "%-21s ", node);
 
   } else {
 
-    sprintf(tmp, "%s/sec", DF(avg_exec));
-    SAYF(bV bSTOP "  exec speed : " cRST "%-21s ", tmp);
+    sprintf(node, "%s/sec", DF(avg_exec));
+    SAYF(bV bSTOP "  exec speed : " cRST "%-21s ", node);
 
   }
 
-  sprintf(tmp, "%s (%s%s unique)", DI(total_tmouts), DI(unique_tmouts),
+  sprintf(node, "%s (%s%s unique)", DI(total_tmouts), DI(unique_tmouts),
           (unique_hangs >= KEEP_UNIQUE_HANG) ? "+" : "");
 
-  SAYF (bSTG bV bSTOP "  total tmouts : " cRST "%-22s " bSTG bV "\n", tmp);
+  SAYF (bSTG bV bSTOP "  total tmouts : " cRST "%-22s " bSTG bV "\n", node);
 
   /* Aaaalmost there... hold on! */
 
@@ -4650,11 +4689,11 @@ static void show_stats(void) {
 
   if (skip_deterministic) {
 
-    strcpy(tmp, "n/a, n/a, n/a");
+    strcpy(node, "n/a, n/a, n/a");
 
   } else {
 
-    sprintf(tmp, "%s/%s, %s/%s, %s/%s",
+    sprintf(node, "%s/%s, %s/%s, %s/%s",
             DI(stage_finds[STAGE_FLIP1]), DI(stage_cycles[STAGE_FLIP1]),
             DI(stage_finds[STAGE_FLIP2]), DI(stage_cycles[STAGE_FLIP2]),
             DI(stage_finds[STAGE_FLIP4]), DI(stage_cycles[STAGE_FLIP4]));
@@ -4662,65 +4701,65 @@ static void show_stats(void) {
   }
 
   SAYF(bV bSTOP "   bit flips : " cRST "%-37s " bSTG bV bSTOP "    levels : "
-       cRST "%-10s " bSTG bV "\n", tmp, DI(max_depth));
+       cRST "%-10s " bSTG bV "\n", node, DI(max_depth));
 
   if (!skip_deterministic)
-    sprintf(tmp, "%s/%s, %s/%s, %s/%s",
+    sprintf(node, "%s/%s, %s/%s, %s/%s",
             DI(stage_finds[STAGE_FLIP8]), DI(stage_cycles[STAGE_FLIP8]),
             DI(stage_finds[STAGE_FLIP16]), DI(stage_cycles[STAGE_FLIP16]),
             DI(stage_finds[STAGE_FLIP32]), DI(stage_cycles[STAGE_FLIP32]));
 
   SAYF(bV bSTOP "  byte flips : " cRST "%-37s " bSTG bV bSTOP "   pending : "
-       cRST "%-10s " bSTG bV "\n", tmp, DI(pending_not_fuzzed));
+       cRST "%-10s " bSTG bV "\n", node, DI(pending_not_fuzzed));
 
   if (!skip_deterministic)
-    sprintf(tmp, "%s/%s, %s/%s, %s/%s",
+    sprintf(node, "%s/%s, %s/%s, %s/%s",
             DI(stage_finds[STAGE_ARITH8]), DI(stage_cycles[STAGE_ARITH8]),
             DI(stage_finds[STAGE_ARITH16]), DI(stage_cycles[STAGE_ARITH16]),
             DI(stage_finds[STAGE_ARITH32]), DI(stage_cycles[STAGE_ARITH32]));
 
   SAYF(bV bSTOP " arithmetics : " cRST "%-37s " bSTG bV bSTOP "  pend fav : "
-       cRST "%-10s " bSTG bV "\n", tmp, DI(pending_favored));
+       cRST "%-10s " bSTG bV "\n", node, DI(pending_favored));
 
   if (!skip_deterministic)
-    sprintf(tmp, "%s/%s, %s/%s, %s/%s",
+    sprintf(node, "%s/%s, %s/%s, %s/%s",
             DI(stage_finds[STAGE_INTEREST8]), DI(stage_cycles[STAGE_INTEREST8]),
             DI(stage_finds[STAGE_INTEREST16]), DI(stage_cycles[STAGE_INTEREST16]),
             DI(stage_finds[STAGE_INTEREST32]), DI(stage_cycles[STAGE_INTEREST32]));
 
   SAYF(bV bSTOP "  known ints : " cRST "%-37s " bSTG bV bSTOP " own finds : "
-       cRST "%-10s " bSTG bV "\n", tmp, DI(queued_discovered));
+       cRST "%-10s " bSTG bV "\n", node, DI(queued_discovered));
 
   if (!skip_deterministic)
-    sprintf(tmp, "%s/%s, %s/%s, %s/%s",
+    sprintf(node, "%s/%s, %s/%s, %s/%s",
             DI(stage_finds[STAGE_EXTRAS_UO]), DI(stage_cycles[STAGE_EXTRAS_UO]),
             DI(stage_finds[STAGE_EXTRAS_UI]), DI(stage_cycles[STAGE_EXTRAS_UI]),
             DI(stage_finds[STAGE_EXTRAS_AO]), DI(stage_cycles[STAGE_EXTRAS_AO]));
 
   SAYF(bV bSTOP "  dictionary : " cRST "%-37s " bSTG bV bSTOP
-       "  imported : " cRST "%-10s " bSTG bV "\n", tmp,
+       "  imported : " cRST "%-10s " bSTG bV "\n", node,
        sync_id ? DI(queued_imported) : (u8*)"n/a");
 
-  sprintf(tmp, "%s/%s, %s/%s",
+  sprintf(node, "%s/%s, %s/%s",
           DI(stage_finds[STAGE_HAVOC]), DI(stage_cycles[STAGE_HAVOC]),
           DI(stage_finds[STAGE_SPLICE]), DI(stage_cycles[STAGE_SPLICE]));
 
-  SAYF(bV bSTOP "       havoc : " cRST "%-37s " bSTG bV bSTOP, tmp);
+  SAYF(bV bSTOP "       havoc : " cRST "%-37s " bSTG bV bSTOP, node);
 
-  if (t_bytes) sprintf(tmp, "%0.02f%%", stab_ratio);
-    else strcpy(tmp, "n/a");
+  if (t_bytes) sprintf(node, "%0.02f%%", stab_ratio);
+    else strcpy(node, "n/a");
 
   SAYF(" stability : %s%-10s " bSTG bV "\n", (stab_ratio < 85 && var_byte_count > 40) 
        ? cLRD : ((queued_variable && (!persistent_mode || var_byte_count > 20))
-       ? cMGN : cRST), tmp);
+       ? cMGN : cRST), node);
 
   if (!bytes_trim_out) {
 
-    sprintf(tmp, "n/a, ");
+    sprintf(node, "n/a, ");
 
   } else {
 
-    sprintf(tmp, "%0.02f%%/%s, ",
+    sprintf(node, "%0.02f%%/%s, ",
             ((double)(bytes_trim_in - bytes_trim_out)) * 100 / bytes_trim_in,
             DI(trim_execs));
 
@@ -4731,7 +4770,7 @@ static void show_stats(void) {
     u8 tmp2[128];
 
     sprintf(tmp2, "n/a");
-    strcat(tmp, tmp2);
+    strcat(node, tmp2);
 
   } else {
 
@@ -4741,11 +4780,11 @@ static void show_stats(void) {
             ((double)(blocks_eff_total - blocks_eff_select)) * 100 /
             blocks_eff_total);
 
-    strcat(tmp, tmp2);
+    strcat(node, tmp2);
 
   }
 
-  SAYF(bV bSTOP "        trim : " cRST "%-37s " bSTG bVR bH20 bH2 bH2 bRB "\n", tmp);
+  SAYF(bV bSTOP "        trim : " cRST "%-37s " bSTG bVR bH20 bH2 bH2 bRB "\n", node);
   SAYF(bVR bH cCYA bSTOP " Model Infos " bSTG bH10 bH bHT bH10 bH5 bHB bH bSTOP bHB bH bSTOP bH5
        bH5 bHB bH bSTOP cCYA " Other Infos " bSTG bH5 bH2 bH bVL "\n");
   SAYF(bV bSTOP "   skip byte : " cRST "%-37s " "\n",DI(model_skip_byte_size));
@@ -4925,7 +4964,7 @@ static u32 next_p2(u32 val) {
 
 static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
-  static u8 tmp[64];
+  static u8 node[64];
   static u8 clean_trace[MAP_SIZE];
 
   u8  needs_write = 0, fault = 0;
@@ -4939,7 +4978,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
   if (q->len < 5) return 0;
 
-  stage_name = tmp;
+  stage_name = node;
   bytes_trim_in += q->len;
 
   /* Select initial chunk len, starting with large steps. */
@@ -4955,7 +4994,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
     u32 remove_pos = remove_len;
 
-    sprintf(tmp, "trim %s/%s", DI(remove_len), DI(remove_len));
+    sprintf(node, "trim %s/%s", DI(remove_len), DI(remove_len));
 
     stage_cur = 0;
     stage_max = q->len / remove_len;
@@ -6718,12 +6757,12 @@ havoc_stage:
 
   } else {
 
-    static u8 tmp[32];
+    static u8 node[32];
 
     perf_score = orig_perf;
 
-    sprintf(tmp, "splice %u", splice_cycle);
-    stage_name  = tmp;
+    sprintf(node, "splice %u", splice_cycle);
+    stage_name  = node;
     stage_short = "splice";
     stage_max   = SPLICE_HAVOC * perf_score / havoc_div / 100;
 
@@ -7514,9 +7553,9 @@ EXP_ST void check_binary(u8* fname) {
 
   /* Check for blatant user errors. */
 
-  if ((!strncmp(target_path, "/tmp/", 5) && !strchr(target_path + 5, '/')) ||
-      (!strncmp(target_path, "/var/tmp/", 9) && !strchr(target_path + 9, '/')))
-     FATAL("Please don't keep binaries in /tmp or /var/tmp");
+  if ((!strncmp(target_path, "/node/", 5) && !strchr(target_path + 5, '/')) ||
+      (!strncmp(target_path, "/var/node/", 9) && !strchr(target_path + 9, '/')))
+     FATAL("Please don't keep binaries in /node or /var/node");
 
   fd = open(target_path, O_RDONLY);
 
@@ -7643,9 +7682,9 @@ static void fix_up_banner(u8* name) {
 
   if (strlen(use_banner) > 40) {
 
-    u8* tmp = ck_alloc(44);
-    sprintf(tmp, "%.40s...", use_banner);
-    use_banner = tmp;
+    u8* node = ck_alloc(44);
+    sprintf(node, "%.40s...", use_banner);
+    use_banner = node;
 
   }
 
@@ -7739,7 +7778,7 @@ static void usage(u8* argv0) {
 
 EXP_ST void setup_dirs_fds(void) {
 
-  u8* tmp;
+  u8* node;
   s32 fd;
 
   ACTF("Setting up output directories...");
@@ -7770,74 +7809,74 @@ EXP_ST void setup_dirs_fds(void) {
   }
   /* mark:yagol:start */
 
-  tmp = alloc_printf("%s/ya", out_dir);  //create ya dir, which save testcase ya need
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/ya", out_dir);  //create ya dir, which save testcase ya need
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* mark:yagol:end */
 
   /* Queue directory for any starting & discovered paths. */
 
-  tmp = alloc_printf("%s/queue", out_dir);
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/queue", out_dir);
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* Top-level directory for queue metadata used for session
      resume and related tasks. */
 
-  tmp = alloc_printf("%s/queue/.state/", out_dir);
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/queue/.state/", out_dir);
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* Directory for flagging queue entries that went through
      deterministic fuzzing in the past. */
 
-  tmp = alloc_printf("%s/queue/.state/deterministic_done/", out_dir);
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/queue/.state/deterministic_done/", out_dir);
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* Directory with the auto-selected dictionary entries. */
 
-  tmp = alloc_printf("%s/queue/.state/auto_extras/", out_dir);
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/queue/.state/auto_extras/", out_dir);
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* The set of paths currently deemed redundant. */
 
-  tmp = alloc_printf("%s/queue/.state/redundant_edges/", out_dir);
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/queue/.state/redundant_edges/", out_dir);
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* The set of paths showing variable behavior. */
 
-  tmp = alloc_printf("%s/queue/.state/variable_behavior/", out_dir);
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/queue/.state/variable_behavior/", out_dir);
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* Sync directory for keeping track of cooperating fuzzers. */
 
   if (sync_id) {
 
-    tmp = alloc_printf("%s/.synced/", out_dir);
+    node = alloc_printf("%s/.synced/", out_dir);
 
-    if (mkdir(tmp, 0700) && (!in_place_resume || errno != EEXIST))
-      PFATAL("Unable to create '%s'", tmp);
+    if (mkdir(node, 0700) && (!in_place_resume || errno != EEXIST))
+      PFATAL("Unable to create '%s'", node);
 
-    ck_free(tmp);
+    ck_free(node);
 
   }
 
   /* All recorded crashes. */
 
-  tmp = alloc_printf("%s/crashes", out_dir);
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/crashes", out_dir);
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* All recorded hangs. */
 
-  tmp = alloc_printf("%s/hangs", out_dir);
-  if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/hangs", out_dir);
+  if (mkdir(node, 0700)) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   /* Generally useful file descriptors. */
 
@@ -7849,10 +7888,10 @@ EXP_ST void setup_dirs_fds(void) {
 
   /* Gnuplot output file. */
 
-  tmp = alloc_printf("%s/plot_data", out_dir);
-  fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL, 0600);
-  if (fd < 0) PFATAL("Unable to create '%s'", tmp);
-  ck_free(tmp);
+  node = alloc_printf("%s/plot_data", out_dir);
+  fd = open(node, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (fd < 0) PFATAL("Unable to create '%s'", node);
+  ck_free(node);
 
   plot_file = fdopen(fd, "w");
   if (!plot_file) PFATAL("fdopen() failed");
@@ -7953,7 +7992,7 @@ static void check_crash_handling(void) {
 static void check_cpu_governor(void) {
 
   FILE* f;
-  u8 tmp[128];
+  u8 node[128];
   u64 min = 0, max = 0;
 
   if (getenv("AFL_SKIP_CPUFREQ")) return;
@@ -7963,11 +8002,11 @@ static void check_cpu_governor(void) {
 
   ACTF("Checking CPU scaling governor...");
 
-  if (!fgets(tmp, 128, f)) PFATAL("fgets() failed");
+  if (!fgets(node, 128, f)) PFATAL("fgets() failed");
 
   fclose(f);
 
-  if (!strncmp(tmp, "perf", 4)) return;
+  if (!strncmp(node, "perf", 4)) return;
 
   f = fopen("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq", "r");
 
@@ -8038,12 +8077,12 @@ static void get_core_count(void) {
 #else
 
   FILE* f = fopen("/proc/stat", "r");
-  u8 tmp[1024];
+  u8 node[1024];
 
   if (!f) return;
 
-  while (fgets(tmp, sizeof(tmp), f))
-    if (!strncmp(tmp, "cpu", 3) && isdigit(tmp[3])) cpu_core_count++;
+  while (fgets(node, sizeof(node), f))
+    if (!strncmp(node, "cpu", 3) && isdigit(node[3])) cpu_core_count++;
 
   fclose(f);
 
@@ -8268,7 +8307,7 @@ EXP_ST void setup_signal_handlers(void) {
 static char** get_qemu_argv(u8* own_loc, char** argv, int argc) {
 
   char** new_argv = ck_alloc(sizeof(char*) * (argc + 4));
-  u8 *tmp, *cp, *rsl, *own_copy;
+  u8 *node, *cp, *rsl, *own_copy;
 
   /* Workaround for a QEMU stability glitch. */
 
@@ -8281,14 +8320,14 @@ static char** get_qemu_argv(u8* own_loc, char** argv, int argc) {
 
   /* Now we need to actually find the QEMU binary to put in argv[0]. */
 
-  tmp = getenv("AFL_PATH");
+  node = getenv("AFL_PATH");
 
-  if (tmp) {
+  if (node) {
 
-    cp = alloc_printf("%s/afl-qemu-trace", tmp);
+    cp = alloc_printf("%s/afl-qemu-trace", node);
 
     if (access(cp, X_OK))
-      FATAL("Unable to find '%s'", tmp);
+      FATAL("Unable to find '%s'", node);
 
     target_path = new_argv[0] = cp;
     return new_argv;
@@ -8785,6 +8824,12 @@ int main(int argc, char** argv) {
     }
 #endif
 
+#if 0
+
+  update_good_seeds("/home/lowry/Documents/LoopCode/scripts/jasper-2.0.21/obj-loop/temp/good_seeds.txt");
+
+#endif
+
 #if 1
 
     /* 跳过坏种子, 指向好种子 */
@@ -8803,8 +8848,9 @@ int main(int argc, char** argv) {
 
         /* 遍历好种子, 如果好种子中有种子和当前指向的种子匹配, 则跳出遍历 */
 
-        for (i = 0; i < good_seeds_length; i++) {
-          if (!strcmp(good_seeds_name[i], queue_cur->fname + pos)) {
+        struct good_seed_list* ptr = good_seed_entry;
+        for (; ptr; ptr = ptr->next) {
+          if (!strcmp(ptr->fname, queue_cur->fname + pos)) {
             has_good = 1;
             break;
           }
