@@ -14,7 +14,7 @@ import socket
 import time
 import argparse
 import random
-import kMeans
+import clustering
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # 将项目添加到PATH里
 sys.path.append(BASE_DIR)
@@ -84,7 +84,7 @@ def main():
         t1.start()
         # showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
         # showmap_thread.start()
-        # print('>>>Begin>>>')
+        print('>>>Begin>>>')
         if args.kmeans == 'T':
             while True:
                 print('>>>while True')
@@ -95,7 +95,7 @@ def main():
                     print('>>>data.startswith')
                     res = args.good_seeds_path
                     loguru.logger.info(f"good_seeds_path: {res}")
-                    kMeans.get_seeds_random(seed_path=args.testcase_dir_path, out_path=args.good_seeds_path)
+                    clustering.get_seeds_random(seed_path=args.testcase_dir_path, out_path=args.good_seeds_path)
                     # kMeans.get_seeds_fixed(seed_path=args.testcase_dir_path, out_path=args.good_seeds_path)
                     server_socket.sendto(res.encode("utf-8"), client)
     # else:  # 不启用SOCKET，单机测试

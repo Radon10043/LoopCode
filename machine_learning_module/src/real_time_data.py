@@ -12,7 +12,7 @@ import pandas as pd
 
 def recordData(tmp=None, stats=None):
     totalTime = 120
-    sleep(5)
+    sleep(60)
     graphData = tmp + '/graphData.csv'
     x_axis_data = [0]  # x轴数据：时间
     y_axis_data = [0]  # y轴数据：覆盖路径数量

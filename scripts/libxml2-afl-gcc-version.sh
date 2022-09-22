@@ -1,8 +1,9 @@
 # libxml2
 
-cp -r SRC libxml2-2.9.14-gcc
-cd libxml2-2.9.14-gcc
-git checkout v2.9.14
+cp -r SRC libxml2-2.9.10-gcc
+cd libxml2-2.9.10-gcc
+#git checkout v2.9.10
+
 
 mkdir obj-afl
 mkdir obj-afl/temp

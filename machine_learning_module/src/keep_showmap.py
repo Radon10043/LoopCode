@@ -13,6 +13,7 @@ def runner(testcase_dir, binary_file_path, base_cmd, save_path):
     timer = 0
     open(save_path, "w")
     edge = set()
+    time.sleep(1)
     while True:
         timer += 1
         loguru.logger.info(f"开始第{timer}次路径信息统计...")
@@ -66,3 +67,9 @@ def runner_test(testcase_dir, binary_file_path, base_cmd):
 
 
 # runner_test("/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out", "/home/yagol/LoopCode/scripts/jasper-3.0.3-gcc/obj-loop/src/app/jasper", "--output /tmp/out_afl_origin.jpg --input")
+
+
+# runner(r"/home/lowry/Documents/LoopCode/scripts/jasper_in3",
+#        r"/home/lowry/Documents/LoopCode/scripts/jasper-3.0.3-gcc/obj-loop/src/app/jasper",
+#        r'"--output /tmp/out_afl_origin.jpg --input"',
+#        r"/home/lowry/Documents/LoopCode/scripts/jasper-3.0.3/obj-loop/temp/py.log/edge_cov.info")

@@ -13,7 +13,7 @@ import numpy
 import socket
 import time
 import argparse
-import kMeans
+import clustering
 import real_time_data as rtd
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # 将项目添加到PATH里
@@ -88,7 +88,9 @@ def main():
                 print('>>>data.startswith')
                 res = args.good_seeds_path
                 loguru.logger.info(f"good_seeds_path: {res}")
-                kMeans.k_means_main(seed_path=args.testcase_dir_path, out_path=res)
+                # clustering.k_means_main(seed_path=args.testcase_dir_path, out_path=res)
+                # clustering.db_scan_main(seed_path=args.testcase_dir_path, out_path=res)
+                clustering.k_means_main(seed_path=args.testcase_dir_path, out_path=res)
                 server_socket.sendto(res.encode("utf-8"), client)
     # else:  # 不启用SOCKET，单机测试
         # start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")

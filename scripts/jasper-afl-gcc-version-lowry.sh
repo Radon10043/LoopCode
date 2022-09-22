@@ -1,8 +1,11 @@
 # Jasper
 
-cp -r SRC jasper-2.0.21-gcc
-cd jasper-2.0.21-gcc
-git checkout v2.0.21
+#cp -r SRC jasper-2.0.21-gcc
+#cd jasper-2.0.21-gcc
+#git checkout v2.0.21
+cp -r SRC jasper-3.0.3-gcc
+cd jasper-3.0.3-gcc
+git checkout 020ec588 # version-3.0.3
 
 mkdir obj-loop
 mkdir obj-loop/temp
