@@ -2,7 +2,7 @@
 # @Author: Radon
 # @Date: 2022-05-16 14:23:19
 # @LastEditors: Radon
-# @LastEditTime: 2022-07-21 15:43:45
+# @LastEditTime: 2022-10-01 18:05:20
 # @Description: Hi, say something
 ###
 
@@ -13,6 +13,7 @@
 download() {
   git clone https://github.com/libming/libming.git LIBMING-SRC
 
+  rm -rf libming-0.4.8
   cp -r LIBMING-SRC libming-0.4.8
 
   cd libming-0.4.8/
@@ -71,6 +72,7 @@ model() {
   export CXX=$AFLM/afl-clang-fast++
   export LDFLAGS=-lpthread
   export ADDITIONAL="-outdir=$TMP_DIR"
+  export BBNAMES="LoopBBFile.txt"
 
   ./autogen.sh
 
@@ -81,10 +83,11 @@ model() {
   make
 
   # Get max line
-  line=$(wc -l $TMP_DIR/BBFile.txt | cut -d ' ' -f 1)
+  cat $TMP_DIR/$BBNAMES | sort | uniq >$TMP_DIR/BBnames2.txt && mv $TMP_DIR/BBnames2.txt $TMP_DIR/$BBNAMES
+  line=$(wc -l $TMP_DIR/$BBNAMES | cut -d ' ' -f 1)
 
   # 2nd build
-  CFLAGS="-bbfile=$TMP_DIR/BBFile.txt" CXXFLAGS="-bbfile=$TMP_DIR/BBFile.txt" ../configure --disable-shared --prefix=$(pwd)
+  CFLAGS="-bbfile=$TMP_DIR/$BBNAMES" CXXFLAGS="-bbfile=$TMP_DIR/$BBNAMES" ../configure --disable-shared --prefix=$(pwd)
   make clean
   make
 
@@ -96,8 +99,9 @@ model() {
   wget -P in http://condor.depaul.edu/sjost/hci430/flash-examples/swf/bumble-bee1.swf
 
   for ((i = 1; i <= $1; i++)); do
+    echo "$i"
     # timeout? -p?
-    $AFLM/afl-fuzz -l $line -m none -i in -o out ./util/swftophp @@
+    # $AFLM/afl-fuzz -l $line -m none -i in -o out ./util/swftophp @@
   done
 }
 
