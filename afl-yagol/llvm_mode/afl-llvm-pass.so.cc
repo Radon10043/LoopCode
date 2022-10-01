@@ -102,10 +102,23 @@ namespace {
 
   };
 
+  class LoopPass : public FunctionPass {
+
+    public:
+
+      static char ID;
+      LoopPass() : FunctionPass(ID) {}
+
+      bool runOnFunction(Function& F) override;
+      void getAnalysisUsage(AnalysisUsage &AU) const override;
+
+  };
+
 }
 
 
 char AFLCoverage::ID = 0;
+char LoopPass::ID    = 1;
 
 
 static void getDebugLoc(const Instruction *I, std::string &Filename,
@@ -160,6 +173,79 @@ static bool isBlacklisted(const Function *F) {
   }
 
   return false;
+}
+
+
+void LoopPass::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.setPreservesCFG();
+  AU.addRequired<LoopInfoWrapperPass>();
+}
+
+
+bool LoopPass::runOnFunction(Function& F) {
+
+  /* Black list of function names */
+  if (isBlacklisted(&F)) {
+    return false;
+  }
+
+  /* -bbfile 与 -outdir 不能同时存在 */
+  if (!BBFile.empty() && !OutDirectory.empty()) {
+    FATAL("-bbfile and -outdir can't coexist.");
+    return false;
+  }
+
+  /* 如果 -outdir 不为空的话, 证明是预处理; 否则是程序插桩 */
+  bool is_preprocessing = false;
+  if (!OutDirectory.empty())
+    is_preprocessing = true;
+
+  /* 不是预处理的话, 就没必要分析循环块了 */
+  if (!is_preprocessing)
+    return false;
+
+  /* 预处理阶段, 分析所有循环块并输出到文件 */
+  std::ofstream loop_bbfile(OutDirectory + "/LoopBBFile.txt", std::ofstream::out | std::ofstream::app);
+  LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+
+  for (auto &BB : F) {
+
+    std::string bbname;
+    std::string filename;
+    unsigned line = 0;
+
+    for (auto &I : BB) {
+      getDebugLoc(&I, filename, line);
+
+      /* Don't worry about external libs */
+      static const std::string Xlibs("/usr/");
+      if (filename.empty() || line == 0 || !filename.compare(0, Xlibs.size(), Xlibs))
+        continue;
+
+      if (bbname.empty()) {
+
+        std::size_t found = filename.find_last_of("/\\");
+        if (found != std::string::npos)
+          filename = filename.substr(found + 1);
+
+        bbname = filename + ":" + std::to_string(line);
+
+      } else {
+
+        break;
+
+      }
+
+    }
+
+    /* bbname可能会有重复的, 记得sort再uniq一下 */
+    if (!bbname.empty() && LI.getLoopFor(&BB))
+      loop_bbfile << bbname << "\n";
+
+  }
+
+  return true;
+
 }
 
 
@@ -410,6 +496,7 @@ bool AFLCoverage::runOnModule(Module &M) {
 static void registerAFLPass(const PassManagerBuilder &,
                             legacy::PassManagerBase &PM) {
 
+  PM.add(new LoopPass());
   PM.add(new AFLCoverage());
 
 }
