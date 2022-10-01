@@ -1,8 +1,8 @@
 ###
 # @Author: Radon
 # @Date: 2022-05-16 14:23:19
-# @LastEditors: Radon
-# @LastEditTime: 2022-10-01 18:05:20
+ # @LastEditors: Radon
+ # @LastEditTime: 2022-10-01 18:17:51
 # @Description: Hi, say something
 ###
 
@@ -64,7 +64,7 @@ model() {
   mkdir obj-model/temp
 
   # AFL-model Path
-  export AFLM=/path/to/afl
+  export AFLM=/home/radon/Documents/project_vscode/cpp/llvm/5_LoopCode/afl-yagol
 
   export SUBJECT=$PWD
   export TMP_DIR=$PWD/obj-model/temp
@@ -99,9 +99,8 @@ model() {
   wget -P in http://condor.depaul.edu/sjost/hci430/flash-examples/swf/bumble-bee1.swf
 
   for ((i = 1; i <= $1; i++)); do
-    echo "$i"
     # timeout? -p?
-    # $AFLM/afl-fuzz -l $line -m none -i in -o out ./util/swftophp @@
+    $AFLM/afl-fuzz -l $line -m none -i in -o out ./util/swftophp @@
   done
 }
 
