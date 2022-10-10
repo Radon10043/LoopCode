@@ -61,7 +61,7 @@ cp $AFL/testcases/images/jp2/not_kitty.jp2 in/
 
 # echo core >/proc/sys/kernel/core_pattern
 
-# 运行afl-model
+# 运行
 #$PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --good-seeds-path $GOOD_SEEDS_PATH --skip-log-stdout --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/jasper-2.0.21-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
 $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --good-seeds-path $GOOD_SEEDS_PATH --skip-log-stdout --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/jasper-3.0.3-gcc/obj-loop/src/app/jasper --append-args "--output /tmp/out_afl_origin.jpg --input" --testcase-dir-path $SUBJECT/obj-loop/out & # 后台运行py
 sleep 5s

@@ -82,8 +82,8 @@ def main():
         loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
         t1 = Thread(target=rtd.recordData, args=(args.out_path, args.fuzzer_stats))
         t1.start()
-        # showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
-        # showmap_thread.start()
+        showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
+        showmap_thread.start()
         print('>>>Begin>>>')
         if args.kmeans == 'T':
             while True:

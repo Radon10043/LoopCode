@@ -23,7 +23,7 @@ def k_means(X, y):
     :return: 模型
     """
     # 设置n_clusters为聚类中心数量
-    n_clusters = int(X.shape[0] / 3)
+    n_clusters = int(X.shape[0] * 0.01)
     # n_clusters = 5
     loguru.logger.info(f'本次训练--->簇的数量：{n_clusters}')
     Kmeans = KMeans(n_clusters=n_clusters)
@@ -239,7 +239,7 @@ def agglomerative_main(seed_path=None, out_path=None):
     X, y, X_file_name = get_byte(seed_path)
 
     """3 将二进制数据作为特征值放入agglomerative求解"""
-    n_clusters = int(len(X)/4)
+    n_clusters = int(len(X)/10)
     loguru.logger.info(f'本次训练--->簇的数量：{n_clusters}')
     cluster = AgglomerativeClustering(n_clusters=n_clusters, affinity='euclidean', linkage='ward')
     cluster.fit_predict(X)

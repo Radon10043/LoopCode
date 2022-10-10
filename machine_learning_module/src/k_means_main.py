@@ -73,8 +73,8 @@ def main():
         loguru.logger.info(f"绑定SOCKET端口成功, 开始监听{PORT}...")
         t1 = Thread(target=rtd.recordData, args=(args.out_path, args.fuzzer_stats))
         t1.start()
-        # showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
-        # showmap_thread.start()
+        showmap_thread = Thread(target=keep_showmap.runner, args=(args.testcase_dir_path, args.gcc_version_bin, args.append_args, os.path.join(args.log_path, "edge_cov.info")))
+        showmap_thread.start()
         # k_means_thread = Thread(target=kMeans.k_means_main, args=(args.testcase_dir_path, args.good_seeds_path))
         # k_means_thread.start()
         # kMeans.k_means_main(seed_path=args.testcase_dir_path, out_path=args.good_seeds_path)
@@ -88,9 +88,9 @@ def main():
                 print('>>>data.startswith')
                 res = args.good_seeds_path
                 loguru.logger.info(f"good_seeds_path: {res}")
-                # clustering.k_means_main(seed_path=args.testcase_dir_path, out_path=res)
-                # clustering.db_scan_main(seed_path=args.testcase_dir_path, out_path=res)
                 clustering.k_means_main(seed_path=args.testcase_dir_path, out_path=res)
+                # clustering.db_scan_main(seed_path=args.testcase_dir_path, out_path=res)
+                # clustering.agglomerative_main(seed_path=args.testcase_dir_path, out_path=res)
                 server_socket.sendto(res.encode("utf-8"), client)
     # else:  # 不启用SOCKET，单机测试
         # start_module(printer=True, test_case_path="/home/yagol/LoopCode/scripts/jasper-3.0.3/obj-loop/out")

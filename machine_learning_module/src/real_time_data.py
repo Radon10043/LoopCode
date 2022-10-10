@@ -20,7 +20,7 @@ def recordData(tmp=None, stats=None):
     # 字典中的key值即为csv中列名
     dataframe = pd.DataFrame({'时间': x_axis_data, '覆盖路径数量': y_axis_data})
     dataframe.to_csv(graphData, index=False)
-    while i < 1000:
+    while i < 1440:
         i += 1
         sleep(60)  # 1min读取一次数据
         with open(stats) as f:
