@@ -298,6 +298,7 @@ static u8* (*post_handler)(u8* buf, u32* len);
 static u32 stop_time  = 60;           /* Radon: Fuzzing time              */
 static u8 save_myflip = 1;            /* Radon: Save my flip file?        */
 static u8 enable_py   = 0;            /* Radon: Enable py module?         */
+static u8 round_end   = 0;            /* Lowry: This round end?         */
 static u32 max_line   = 65536 << 3;   /* Radon: Max line of cov file      */
 
 static s32 yagol_testcase_counter = 0;        /* Yagol: for count testcase yagol create, used for testcase filename.            */
@@ -312,7 +313,7 @@ static s32 MIN_TESTCASE_SEND_TO_PY = 100;     /* Yagol: 最低给py发送的测�
 static u64 real_time_testcase_counter = 0;    /* Yagol: 实时记录存在cov的测试用例的数量                                              */
 static s32 endurance_time = 1;                /* Yagol: 容忍afl多少分钟没有发现新的路径                                              */
 static u64 model_skip_byte_size = 0;          /* Yagol: 被模型跳过的字节总数量                                                      */
-static u64 model_choose_byte_size = 0;        /* lowry: 被模型选中的字节总数量                                                      */
+static u64 model_choose_byte_size = 0;        /* Lowry: 被模型选中的字节总数量                                                      */
 static s32 checking_byte_cur = 0;               /* Yagol: 临时记录需要被检测的字节位置下标，为什么多出这个变量？因为想和原版afl区分，万一原版用它干了别的，不影响他 */
 static u8 pre_train_model = 0;                 /* Yagol: 是否为预训练模型存在的模式,是则直接启动py                                      */
 
@@ -8809,11 +8810,12 @@ int main(int argc, char** argv) {
     {
       if (last_path_time != 0) //运行过一次,或者至少发现了一个新路径
       {
-        if (get_cur_time() - last_path_time >= 1000 * 60 * endurance_time) // endurance_time分钟没有覆盖新路径，执行py
+        if (get_cur_time() - last_path_time >= 1000 * 60 * endurance_time || round_end) // endurance_time分钟没有覆盖新路径或一轮变异结束,执行py
         {
           if (total_execs >= MIN_TESTCASE_SEND_TO_PY && last_py_train_testcase != real_time_testcase_counter) //测试用例至少MIN个(但不一定是这批生成的，而是输送给py的总体个数)，并且测试用例发生了变化，也就是生成了新的测试用例
           {
             last_py_train_testcase = real_time_testcase_counter; //更新测试用例数量
+            round_end = 0;
             if (-1 == start_py_module())
             {
               FATAL("start_py_module failed");
@@ -8871,7 +8873,10 @@ int main(int argc, char** argv) {
 
     /* 若遍历到队列尾部都没发现好种子, 从头开始 */
 
-    if (!queue_cur) continue;
+    if (!queue_cur){
+        round_end = 1;  // 如果指向为空，则表示一轮变异结束，将开启新的好种子选择
+        continue;
+    }
 
 #endif
 

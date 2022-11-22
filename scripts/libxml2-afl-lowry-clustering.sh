@@ -89,10 +89,10 @@ main() {
 #  echo $line
 #  exit 1
 
-  # 正式运行cluzz
+  # 正式运行varied
   $PY_PATH -u $PY_MAIN_PATH --log-path $PY_OUTPUT_DIR_PATH --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --good-seeds-path $GOOD_SEEDS_PATH --skip-log-stdout --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.10-gcc/obj-afl/xmllint --append-args "--valid --recover" --testcase-dir-path $SUBJECT/obj-afl/out & # 后台运行py
   sleep 5s
-  $AFL/afl-fuzz -p -y -k 180 -l $line -t 1000+ -e 1 -m none -i /home/lowry/Documents/LoopCode/scripts/libxml2_in2 -o $SUBJECT/obj-afl/out $SUBJECT/obj-afl/xmllint --valid --recover @@
+  $AFL/afl-fuzz -p -y -k 180 -l $line -t 1000+ -e 3 -m none -i /home/lowry/Documents/LoopCode/scripts/libxml2_in2 -o $SUBJECT/obj-afl/out $SUBJECT/obj-afl/xmllint --valid --recover @@
 
   # 独立运行原版afl
 #  $PY_PATH -u $KEEP_SHOWMAP_THREAD_PATH --kmeans F --fuzzer-stats $FUZZER_STATS --out-path $TMP_DIR --log-path $PY_OUTPUT_DIR_PATH --skip-log-stdout --gcc-version-bin /home/lowry/Documents/LoopCode/scripts/libxml2-2.9.10-gcc/obj-afl/xmllint --append-args "--valid --recover" --testcase-dir-path $SUBJECT/obj-afl/out & # 后台运行py

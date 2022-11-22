@@ -23,7 +23,7 @@ def k_means(X, y):
     :return: 模型
     """
     # 设置n_clusters为聚类中心数量
-    n_clusters = int(X.shape[0] * 0.01)
+    n_clusters = int(X.shape[0] * 0.05)
     # n_clusters = 5
     loguru.logger.info(f'本次训练--->簇的数量：{n_clusters}')
     Kmeans = KMeans(n_clusters=n_clusters)
@@ -68,7 +68,51 @@ def write_seed_name(seed_name, path):
     f.close()
 
 
-def choose_seed(seed_list, label_list):
+def measure_distance(a, b):
+    """
+    计算两点的欧几里得距离
+    :param a: a点
+    :param b: b点
+    :return:
+    """
+    dist = np.linalg.norm(a - b)
+    return dist
+
+
+def choose_seed_far(seed_list, label_list, cluster_center, seeds_byte):
+    """
+    根据label_list从seed_list中随机选择种子
+    :param seeds_byte: 所有种子的字节序列
+    :param cluster_center: 簇中心点
+    :param seed_list: 所有的种子文件名列表
+    :param label_list: 特征标签列表
+    :return: 最终的种子文件名列表
+    """
+    new_seed_list = []
+    label_array = np.array(label_list)  # 转换成数组
+    label_set = list(set(label_list))  # 得到标签集合，在转换为列表
+    for s in label_set:  # 遍历所有label集合，每次随机得到一个标签的种子文件名，并添加至new_seed_list
+        index_list = np.where(label_array == s)[0]  # 该标签在label_list中的位置
+        print(f'标签{s}索引')
+        print(index_list)
+        index_list = index_list.tolist()
+        if len(index_list) == 1:
+            new_seed = seed_list[index_list[0]]
+            print(f'选择的种子文件名是：{new_seed}')
+        else:
+            distance_list = []
+            for m in index_list:
+                distance = measure_distance(seeds_byte[m], cluster_center[s])
+                distance_list.append(distance)
+            i = distance_list.index(max(distance_list))
+            i = index_list[i]
+            new_seed = seed_list[int(i)]  # 获取该位置的种子文件名
+            print(f'选择的种子文件名是：{new_seed}')
+        new_seed_list.append(new_seed)  # 将该簇中的该种子添加至new_seed_list
+    return new_seed_list
+
+
+def choose_seed_random(seed_list, label_list):
     """
     根据label_list从seed_list中随机选择种子
     :param seed_list: 所有的种子文件名列表
@@ -93,7 +137,97 @@ def choose_seed(seed_list, label_list):
     return new_seed_list
 
 
-#
+def choose_seed_near(seed_list, label_list, cluster_center, seeds_byte):
+    """
+    根据label_list从seed_list中选择最远的种子
+    :param seeds_byte: 所有种子的字节序列
+    :param cluster_center: 簇中心点
+    :param seed_list: 所有的种子文件名列表
+    :param label_list: 特征标签列表
+    :return: 最终的种子文件名列表
+    """
+    new_seed_list = []
+    label_array = np.array(label_list)  # 转换成数组
+    label_set = list(set(label_list))  # 得到标签集合，在转换为列表
+    for s in label_set:  # 遍历所有label集合，每次随机得到一个标签的种子文件名，并添加至new_seed_list
+        index_list = np.where(label_array == s)[0]  # 该标签在label_list中的位置
+        print(f'标签{s}索引')
+        print(index_list)
+        index_list = index_list.tolist()
+        if len(index_list) == 1:
+            new_seed = seed_list[index_list[0]]
+            print(f'选择的种子文件名是：{new_seed}')
+        else:
+            distance_list = []
+            for m in index_list:
+                distance = measure_distance(seeds_byte[m], cluster_center[s])
+                distance_list.append(distance)
+            i = distance_list.index(min(distance_list))
+            i = index_list[i]
+            new_seed = seed_list[int(i)]  # 获取该位置的种子文件名
+            print(f'选择的种子文件名是：{new_seed}')
+        new_seed_list.append(new_seed)  # 将该簇中的该种子添加至new_seed_list
+    return new_seed_list
+
+
+def measure_probability(numbers):
+    """
+    根据numbers中的数，根据每个数从小到大的排名赋予其概率(排名/总数)
+    :param numbers: 内涵每个种子距离簇中心点的距离
+    :return: 与numbers等长度的列表
+    """
+    numbers_array = np.array(numbers)
+
+    temp = numbers_array.argsort()
+
+    probability_list = np.empty_like(temp)
+
+    probability_list[temp] = np.arange(len(numbers))
+    # print(numbers_array)
+    # print(probability_list)
+    return probability_list.tolist()
+
+
+def choose_seed_probability(seed_list, label_list, cluster_center, seeds_byte):
+    """
+    根据label_list从seed_list中根据概率选择种子
+    :param seeds_byte: 所有种子的字节序列
+    :param cluster_center: 簇中心点
+    :param seed_list: 所有的种子文件名列表
+    :param label_list: 特征标签列表
+    :return: 最终的种子文件名列表
+    """
+    new_seed_list = []
+    label_array = np.array(label_list)  # 转换成数组
+    label_set = list(set(label_list))  # 得到标签集合，在转换为列表
+    for s in label_set:  # 遍历所有label集合，每次随机得到一个标签的种子文件名，并添加至new_seed_list
+        index_list = np.where(label_array == s)[0]  # 该标签在label_list中的位置
+        # print(f'标签{s}索引')
+        # print(index_list)
+        index_list = index_list.tolist()
+        if len(index_list) == 1:
+            new_seed = seed_list[index_list[0]]
+            # print(f'选择的种子文件名是：{new_seed}')
+            new_seed_list.append(new_seed)  # 将该簇中的该种子添加至new_seed_list
+        else:
+            distance_list = []
+            for m in index_list:
+                distance = measure_distance(seeds_byte[m], cluster_center[s])
+                distance_list.append(distance)
+            # print(distance_list)
+            probability_list = measure_probability(distance_list)
+            for i in range(len(probability_list)):
+                r = random.random()
+                p = (probability_list[i] + 1) / len(probability_list)
+                if p > r:
+                    i = index_list[i]
+                    new_seed = seed_list[int(i)]  # 获取该位置的种子文件名
+                    # print(f'选择的种子文件名是：{new_seed}，概率为（p ==> r）：{p} ==> {r}')
+                    new_seed_list.append(new_seed)  # 将该簇中的该种子添加至new_seed_list
+    # print(new_seed_list)
+    return new_seed_list
+
+
 def get_byte(seed_path=None):
     X = []  # 用于存储特征值
     X_file_name = []  # 用于存储被选出的种子文件名
@@ -136,8 +270,18 @@ def k_means_main(seed_path=None, out_path=None):
     # cc = km.cluster_centers_  # 簇中心点
     lb = km.labels_  # 特征标签
 
-    """5. 从每个簇中随机选择种子，并将选出的种子文件名存入seeds_name中"""
-    seed_name = choose_seed(seed_list=X_file_name, label_list=lb)
+    """5.1. 从每个簇中随机选择种子，并将选出的种子文件名存入seeds_name中"""
+    seed_name = choose_seed_random(seed_list=X_file_name, label_list=lb)
+
+    # """5.2. 从每个簇中选择离中心点最远的种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_far(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
+
+    # """5.3. 从每个簇中选择离中心点最近的种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_near(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
+
+    # """5.4. 按照离中心点的远近，根据概率从每个簇中选择种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_probability(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
+
 
     """6. 将选择的种子文件名写入good_seeds.txt"""
     write_seed_name(seed_name=seed_name, path=out_path)
@@ -210,8 +354,17 @@ def db_scan_main(seed_path=None, out_path=None):
     """4. 获得特征标签"""
     lb = y_pred['labels_']
 
-    """5. 从每个簇中随机选择种子，并将选出的种子文件名存入seeds_name中"""
-    seed_name = choose_seed(seed_list=X_file_name, label_list=lb)
+    """5.1. 从每个簇中随机选择种子，并将选出的种子文件名存入seeds_name中"""
+    seed_name = choose_seed_random(seed_list=X_file_name, label_list=lb)
+
+    # """5.2. 从每个簇中选择离中心点最远的种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_far(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
+
+    # """5.3. 从每个簇中选择离中心点最近的种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_near(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
+
+    # """5.4. 按照离中心点的远近，根据概率从每个簇中选择种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_probability(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
 
     """6. 将选择的种子文件名写入good_seeds.txt"""
     write_seed_name(seed_name=seed_name, path=out_path)
@@ -239,7 +392,7 @@ def agglomerative_main(seed_path=None, out_path=None):
     X, y, X_file_name = get_byte(seed_path)
 
     """3 将二进制数据作为特征值放入agglomerative求解"""
-    n_clusters = int(len(X)/10)
+    n_clusters = int(len(X) * 0.5)
     loguru.logger.info(f'本次训练--->簇的数量：{n_clusters}')
     cluster = AgglomerativeClustering(n_clusters=n_clusters, affinity='euclidean', linkage='ward')
     cluster.fit_predict(X)
@@ -248,11 +401,20 @@ def agglomerative_main(seed_path=None, out_path=None):
     """4. 获得特征标签"""
     lb = y_pred['labels_']
 
-    """5. 从每个簇中随机选择种子，并将选出的种子文件名存入seeds_name中"""
-    seed_name = choose_seed(seed_list=X_file_name, label_list=lb)
+    """5.1. 从每个簇中随机选择种子，并将选出的种子文件名存入seeds_name中"""
+    seed_name = choose_seed_random(seed_list=X_file_name, label_list=lb)
+
+    # """5.2. 从每个簇中选择离中心点最远的种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_far(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
+
+    # """5.3. 从每个簇中选择离中心点最近的种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_near(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
+
+    # """5.4. 按照离中心点的远近，根据概率从每个簇中选择种子，并将选出的种子文件名存入文件seeds_name中"""
+    # seed_name = choose_seed_probability(seed_list=X_file_name, label_list=lb, cluster_center=cc, seeds_byte=X)
 
     """6. 将选择的种子文件名写入good_seeds.txt"""
     write_seed_name(seed_name=seed_name, path=out_path)
 
 
-# agglomerative(r'/home/lowry/Documents/LoopCode/scripts/jasper_in4', r"/home/lowry/Documents/LoopCode/scripts/good_seeds.txt")
+# agglomerative_main(r'/home/lowry/Documents/LoopCode/scripts/libxml2-2.9.10/obj-afl/out', r"/home/lowry/Documents/LoopCode/scripts/good_seeds.txt")
